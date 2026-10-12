@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Fixed
+- **Blocked requests looked successful.** They were answered with an empty `200 OK`, so ad-block tests (e.g. adblock.turtlecute.org) and page scripts saw them as loaded: the test scored 3%. Blocked requests now fail with `net::ERR_FAILED` before any headers are sent, like uBlock Origin or a DNS blocker.
+
+## Build 13 (2026-10-12)
+
 ### Added
 - **Large blocklist:** ~72,000 ad/tracker/malware domains from the StevenBlack unified hosts list (MIT), bundled as `app/src/main/assets/blocklist.txt` and refreshed by CI on every build via `scripts/update-blocklist.sh`.
 - Opening a blocked site directly shows an explanation page instead of a blank screen.

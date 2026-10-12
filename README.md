@@ -54,7 +54,7 @@ Output: `app/build/outputs/apk/debug/app-debug.apk`. Install to a connected phon
 Alternatively, open the folder in Android Studio and press Run.
 
 ## How the ad blocking works
-`MainActivity` overrides `WebViewClient.shouldInterceptRequest`. Every request a page makes (scripts, images, iframes, tracking pixels) is checked by hostname. If the host, or any parent domain of it, is on the blocklist, the request gets an empty response instead of being fetched. For example, `stats.g.doubleclick.net` is blocked because `doubleclick.net` is listed.
+`MainActivity` overrides `WebViewClient.shouldInterceptRequest`. Every request a page makes (scripts, images, iframes, tracking pixels) is checked by hostname. If the host, or any parent domain of it, is on the blocklist, the request is made to fail with a network error (the same result a page sees with uBlock Origin or a DNS blocker), so nothing is downloaded and the page's ad code sees the load fail. For example, `stats.g.doubleclick.net` is blocked because `doubleclick.net` is listed.
 
 **The list:** `app/src/main/assets/blocklist.txt`, one domain per line, generated from the [StevenBlack unified hosts list](https://github.com/StevenBlack/hosts) (ads + malware, MIT licence). It is loaded into memory in the background when the app starts, which takes a fraction of a second. Until it has loaded, a small built-in list of 14 major ad networks (`BUILTIN_BLOCKED` in `MainActivity.java`) is used.
 
