@@ -34,6 +34,11 @@ jobs:
           yes | "$SDKMANAGER" --licenses > /dev/null || true
           "$SDKMANAGER" --install "platforms;android-35" "build-tools;35.0.0"
 
+      # Refresh the bundled ad/tracker list so every build ships the latest version.
+      # If the download fails, the copy committed in the repo is used instead.
+      - name: Update blocklist
+        run: ./scripts/update-blocklist.sh || echo "::warning::Blocklist download failed; building with the committed copy."
+
       - name: Set up Gradle 8.9
         uses: gradle/actions/setup-gradle@v4
         with:
