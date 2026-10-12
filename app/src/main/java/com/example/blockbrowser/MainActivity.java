@@ -16,7 +16,7 @@ public class MainActivity extends Activity {
   static final List<String> BUILTIN_BLOCKED = Arrays.asList("doubleclick.net","googlesyndication.com","googleadservices.com","adnxs.com","adsrvr.org","taboola.com","outbrain.com","scorecardresearch.com","criteo.com","pubmatic.com","rubiconproject.com","openx.net","amazon-adsystem.com","facebook.net");
   // Replaced in one step once assets/blocklist.txt has loaded, so request threads never see a half-built set.
   volatile Set<String> blocked = new HashSet<>(BUILTIN_BLOCKED); volatile boolean listLoaded = false;
-  void loadBlocklist(){new Thread(()->{HashSet<String> set=new HashSet<>(150000);set.addAll(BUILTIN_BLOCKED);
+  void loadBlocklist(){new Thread(()->{HashSet<String> set=new HashSet<>(300000);set.addAll(BUILTIN_BLOCKED);
     try(java.io.BufferedReader r=new java.io.BufferedReader(new java.io.InputStreamReader(getAssets().open("blocklist.txt"),"UTF-8"))){String line;while((line=r.readLine())!=null){line=line.trim();if(!line.isEmpty()&&line.charAt(0)!='#')set.add(line.toLowerCase(Locale.ROOT));}}
     catch(java.io.IOException e){android.util.Log.w("BlockBrowser","blocklist.txt not loaded, using built-in list only",e);}
     blocked=set;listLoaded=true;},"blocklist-loader").start();}
