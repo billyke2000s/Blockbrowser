@@ -25,7 +25,7 @@ public class MainActivity extends Activity {
     address.setOnEditorActionListener((v,id,event)->{navigate(address.getText().toString());return true;});
     toolbar.addView(button("↻",()->{if(current>=0)tabs.get(current).reload();}));
     toolbar.addView(button("⋮",this::menu));
-    tabbar=new LinearLayout(this);tabbar.setHorizontalScrollBarEnabled(true);root.addView(tabbar);
+    tabbar=new LinearLayout(this);HorizontalScrollView tabScroll=new HorizontalScrollView(this);tabScroll.setHorizontalScrollBarEnabled(false);tabScroll.addView(tabbar);root.addView(tabScroll);
     frame=new FrameLayout(this);root.addView(frame,new LinearLayout.LayoutParams(-1,0,1));newTab("https://www.google.com");
   }
   boolean isBlocked(String url){if(!blockAds)return false;try{String host=android.net.Uri.parse(url).getHost();if(host==null)return false;host=host.toLowerCase(Locale.ROOT);for(String domain:blocked)if(host.equals(domain)||host.endsWith("."+domain))return true;}catch(Exception ignored){}return false;}
