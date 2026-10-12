@@ -40,7 +40,10 @@ public class MainActivity extends Activity {
     w.setWebViewClient(new WebViewClient(){@Override public WebResourceResponse shouldInterceptRequest(WebView view,WebResourceRequest req){if(!isBlocked(req.getUrl().toString()))return null;
       if(req.isForMainFrame()){String html="<html><body style=\"font-family:sans-serif;padding:24px\"><h3>Blocked by Block Browser</h3><p>"+android.text.TextUtils.htmlEncode(String.valueOf(req.getUrl().getHost()))+" is on the ad/tracker blocklist.</p><p>Turn adblock off in the \u22ee menu to open it anyway.</p></body></html>";
         return new WebResourceResponse("text/html","UTF-8",new java.io.ByteArrayInputStream(html.getBytes(java.nio.charset.StandardCharsets.UTF_8)));}
-      return new WebResourceResponse("text/plain","UTF-8",new java.io.ByteArrayInputStream(new byte[0]));}
+      // Make the request FAIL (net::ERR_FAILED, like uBlock or a DNS blocker) instead of answering with an
+      // empty 200 OK. WebView calls available() before sending headers; if it throws, the request fails
+      // outright (see Chromium components/embedder_support/android/util/input_stream_reader.cc).
+      return new WebResourceResponse("text/plain","UTF-8",new FailingStream());}
     @Override public void onPageFinished(WebView view,String url){if(current>=0&&tabs.get(current)==view)address.setText(url);refreshTabs();}});
     w.setWebChromeClient(new WebChromeClient());tabs.add(w);switchTab(tabs.size()-1);w.loadUrl(url);
   }
@@ -50,4 +53,10 @@ public class MainActivity extends Activity {
   void menu(){String[] items={blockAds?"Disable adblock":"Enable adblock","New tab","Close tab","Home",listLoaded?"Blocklist: "+blocked.size()+" domains":"Blocklist: loading…"};new AlertDialog.Builder(this).setItems(items,(d,which)->{switch(which){case 0:blockAds=!blockAds;Toast.makeText(this,blockAds?"Adblock on":"Adblock off",Toast.LENGTH_SHORT).show();break;case 1:newTab("https://www.google.com");break;case 2:if(tabs.size()>1){WebView w=tabs.remove(current);frame.removeView(w);w.destroy();switchTab(Math.max(0,current-1));}break;case 3:navigate("https://www.google.com");break;}}).show();}
   @Override public void onBackPressed(){if(current>=0&&tabs.get(current).canGoBack())tabs.get(current).goBack();else super.onBackPressed();}
   @Override protected void onDestroy(){for(WebView w:tabs){if(w.getParent()!=null)((android.view.ViewGroup)w.getParent()).removeView(w);w.destroy();}super.onDestroy();}
+  /** Stream that throws as soon as WebView touches it, so the blocked request ends in a network error. */
+  static final class FailingStream extends java.io.InputStream{
+    @Override public int available() throws java.io.IOException{throw new java.io.IOException("Blocked by Block Browser");}
+    @Override public int read() throws java.io.IOException{throw new java.io.IOException("Blocked by Block Browser");}
+    @Override public int read(byte[] b,int off,int len) throws java.io.IOException{throw new java.io.IOException("Blocked by Block Browser");}
+  }
 }
