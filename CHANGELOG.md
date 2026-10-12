@@ -3,6 +3,16 @@
 ## Unreleased
 
 ### Added
+- **Full-screen mode** (⋮ → Full screen): hides the toolbar, tab bar and the phone's status/navigation bars. Back or the *Exit full screen* button leaves it.
+- **Site full screen:** pages' own full-screen buttons (e.g. videos) now work; previously they did nothing.
+- **Emulator UI check** (`.github/workflows/ui-check.yml`, `scripts/ui-check.sh`) on Android 10 and 15, run on pull requests.
+
+### Fixed
+- **Toolbar under the status bar.** On Android 15+ the address bar was drawn underneath the status bar and page content under the navigation buttons. The app now pads its UI by the system bar sizes on all Android versions, and the keyboard no longer covers the page.
+
+## Build 19 (2026-10-12)
+
+### Added
 - **HaGeZi Multi PRO list (GPL-3.0)** merged with StevenBlack: ~215,000 domains after removing redundant subdomains (was ~72,500). Covers all 128 domains in the adblock.turtlecute.org test (was 100). `scripts/update-blocklist.sh` now needs `python3`.
 
 ## Build 16 (2026-10-12)
