@@ -55,6 +55,23 @@ tap_text(){ # $1 = dump name, $2 = text
   adb shell input tap $(( (l + r) / 2 )) $(( (t + b) / 2 ))
 }
 
+# Report a crash and what is on screen as annotations (logs/artifacts may not be viewable).
+diag(){ # $1 = dump name
+  local pid; pid=$(adb shell pidof "$PKG" | tr -d '\r')
+  [ -z "$pid" ] && echo "::error::[$1] app process is not running"
+  local crash; crash=$(adb logcat -d -b crash 2>/dev/null | grep -E "FATAL|Exception|Error|at com\.example|Caused by" | head -15 | sed ':a;N;$!ba;s/\n/%0A/g')
+  [ -n "$crash" ] && echo "::error::[$1] crash log:%0A$crash"
+  [ -f "$OUT/$1.xml" ] && echo "::notice::[$1] on screen: $(python3 - "$OUT/$1.xml" <<'PY'
+import sys, xml.etree.ElementTree as ET
+items=[]
+for n in ET.parse(sys.argv[1]).iter("node"):
+    c=n.get("class","").split(".")[-1]; t=(n.get("text") or "")[:25]
+    if c in ("EditText","TextView","Button","WebView") or n.get("package")=="com.android.systemui":
+        items.append(f"{c}:{t}@{n.get('bounds')}" if t else f"{c}@{n.get('bounds')}({n.get('package').split('.')[-1]})")
+print(" | ".join(items[:20]))
+PY
+)"
+}
 echo "Android API level: $(adb shell getprop ro.build.version.sdk | tr -d '\r')"
 adb install -r "$APK" || { fail "APK install failed"; exit 1; }
 adb shell am start -W -n "$PKG/.MainActivity" >/dev/null
@@ -72,9 +89,9 @@ else fail "Toolbar overlaps the status bar (address bar top $ET_TOP < status bar
 
 # --- 2. Enter full screen from the menu ---------------------------------------
 tap_text normal "⋮" || fail "Menu button not found"
-sleep 2; dump menu; shot 2-menu
+sleep 2; dump menu; shot 2-menu; diag menu
 tap_text menu "Full screen" || fail "'Full screen' menu item not found"
-sleep 4; dump fullscreen || fail "Could not read the screen (full screen)"; shot 3-fullscreen
+sleep 4; dump fullscreen || fail "Could not read the screen (full screen)"; shot 3-fullscreen; diag fullscreen
 FS_SB=$(statusbar fullscreen); echo "full screen status bar from dump: $(statusbar_bottom fullscreen), from app log: $(app_inset_top)"
 if bounds fullscreen class android.widget.EditText | grep -q .; then fail "Address bar still visible in full screen"
 else pass "Toolbar hidden in full screen"; fi
@@ -85,7 +102,7 @@ else fail "Exit full screen button not shown"; fi
 
 # --- 3. Back leaves full screen ------------------------------------------------
 adb shell input keyevent KEYCODE_BACK
-sleep 4; dump after || fail "Could not read the screen (after Back)"; shot 4-after-back
+sleep 4; dump after || fail "Could not read the screen (after Back)"; shot 4-after-back; diag after
 SB2=$(statusbar after)
 read -r ET2_TOP _ _ _ < <(bounds after class android.widget.EditText) || true
 if [ -n "${ET2_TOP:-}" ] && [ "$SB2" -gt 0 ] && [ "$ET2_TOP" -ge "$SB2" ]; then pass "Back left full screen; toolbar is back below the status bar"
