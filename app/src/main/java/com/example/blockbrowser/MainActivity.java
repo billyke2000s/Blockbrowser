@@ -31,7 +31,7 @@ public class MainActivity extends Activity {
     toolbar=new LinearLayout(this);toolbar.setGravity(Gravity.CENTER_VERTICAL);root.addView(toolbar);
     toolbar.addView(button("‹",()->{if(current>=0&&tabs.get(current).canGoBack())tabs.get(current).goBack();}));
     toolbar.addView(button("›",()->{if(current>=0&&tabs.get(current).canGoForward())tabs.get(current).goForward();}));
-    address=new EditText(this);address.setSingleLine(true);address.setTextColor(Color.WHITE);address.setHintTextColor(0xffa0a0a0);address.setHint("Search or enter URL");address.setTextSize(14);address.setSelectAllOnFocus(true);toolbar.addView(address,new LinearLayout.LayoutParams(0,dp(52),1));
+    address=new EditText(this);address.setContentDescription("Address bar");address.setSingleLine(true);address.setTextColor(Color.WHITE);address.setHintTextColor(0xffa0a0a0);address.setHint("Search or enter URL");address.setTextSize(14);address.setSelectAllOnFocus(true);toolbar.addView(address,new LinearLayout.LayoutParams(0,dp(52),1));
     address.setOnEditorActionListener((v,id,event)->{navigate(address.getText().toString());return true;});
     toolbar.addView(button("↻",()->{if(current>=0)tabs.get(current).reload();}));
     toolbar.addView(button("⋮",this::menu));

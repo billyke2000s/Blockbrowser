@@ -80,7 +80,7 @@ sleep 8
 # --- 1. Normal layout -------------------------------------------------------
 dump normal || fail "Could not read the screen (normal)"; shot 1-normal
 SB=$(statusbar normal); echo "status bar from dump: $(statusbar_bottom normal), from app log: $(app_inset_top)"
-read -r ET_TOP ET_BOT _ _ < <(bounds normal class android.widget.EditText) || true
+read -r ET_TOP ET_BOT _ _ < <(bounds normal content-desc "Address bar") || true
 echo "status bar bottom=$SB, address bar top=${ET_TOP:-none}"
 if [ -z "${ET_TOP:-}" ]; then fail "Address bar not found on screen"
 elif [ "$SB" -le 0 ]; then fail "Status bar height not found (neither in screen dump nor app log)"
@@ -91,9 +91,12 @@ else fail "Toolbar overlaps the status bar (address bar top $ET_TOP < status bar
 tap_text normal "⋮" || fail "Menu button not found"
 sleep 2; dump menu; shot 2-menu; diag menu
 tap_text menu "Full screen" || fail "'Full screen' menu item not found"
-sleep 4; dump fullscreen || fail "Could not read the screen (full screen)"; shot 3-fullscreen; diag fullscreen
+sleep 4; dump fullscreen || fail "Could not read the screen (full screen)"
+# Android shows a one-time "Viewing full screen - swipe down to exit" tip the first time; dismiss it.
+if bounds fullscreen text "Got it" | grep -q .; then pass "Android's one-time full-screen tip appeared; dismissing it"; tap_text fullscreen "Got it"; sleep 3; dump fullscreen; fi
+shot 3-fullscreen; diag fullscreen
 FS_SB=$(statusbar fullscreen); echo "full screen status bar from dump: $(statusbar_bottom fullscreen), from app log: $(app_inset_top)"
-if bounds fullscreen class android.widget.EditText | grep -q .; then fail "Address bar still visible in full screen"
+if bounds fullscreen content-desc "Address bar" | grep -q .; then fail "Address bar still visible in full screen"
 else pass "Toolbar hidden in full screen"; fi
 if [ "$FS_SB" -gt 0 ]; then fail "System status bar still visible in full screen"
 else pass "System status bar hidden in full screen"; fi
@@ -104,7 +107,7 @@ else fail "Exit full screen button not shown"; fi
 adb shell input keyevent KEYCODE_BACK
 sleep 4; dump after || fail "Could not read the screen (after Back)"; shot 4-after-back; diag after
 SB2=$(statusbar after)
-read -r ET2_TOP _ _ _ < <(bounds after class android.widget.EditText) || true
+read -r ET2_TOP _ _ _ < <(bounds after content-desc "Address bar") || true
 if [ -n "${ET2_TOP:-}" ] && [ "$SB2" -gt 0 ] && [ "$ET2_TOP" -ge "$SB2" ]; then pass "Back left full screen; toolbar is back below the status bar"
 else fail "After Back: address bar top=${ET2_TOP:-none}, status bar bottom=$SB2"; fi
 
