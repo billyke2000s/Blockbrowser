@@ -10,6 +10,8 @@ A lightweight Android browser (built on Android's WebView) that blocks requests 
 - Blocklist of ~215,000 domains, refreshed on every build (see below). Scores 128/128 on the [adblock.turtlecute.org](https://adblock.turtlecute.org) domain list.
 - Toggle ad blocking on/off from the ⋮ menu; the menu also shows how many domains are loaded
 - Opening a blocked site directly shows a "Blocked by Block Browser" page instead of a blank screen
+- **Full screen:** ⋮ → *Full screen* hides the app's bars and the phone's status/navigation bars. Leave with Back or the *Exit full screen* button. Sites' own full-screen buttons (e.g. on videos) work too
+- Toolbar stays below the phone's status bar, including on Android 15+ (which draws apps edge-to-edge)
 - Android back button goes back in page history
 
 ## Install on your phone
@@ -83,6 +85,8 @@ Note: this only affects pages loaded **inside Block Browser**. It does not block
 | `app/src/main/assets/blocklist.txt` | Generated domain blocklist (don't edit by hand) |
 | `scripts/update-blocklist.sh` | Downloads and regenerates the blocklist |
 | `.github/workflows/android.yml` | CI build and release publishing |
+| `.github/workflows/ui-check.yml`, `scripts/ui-check.sh` | Emulator UI test (see `TESTING.md`) |
+| `TESTING.md` | What is tested and how |
 | `CHANGELOG.md` | History of changes |
 
 ## Licensing note
@@ -97,4 +101,4 @@ The bundled HaGeZi list is GPL-3.0. Publishing APKs that contain it arguably mea
 - No bookmarks, history screen, downloads, incognito mode or per-site settings.
 - Package name is still the placeholder `com.example.blockbrowser`; change it before any public/Play Store release.
 - Only debug-signed builds are produced.
-- No automated tests.
+- Automated tests cover only the toolbar position and full-screen mode (see `TESTING.md`); nothing else is tested automatically.
