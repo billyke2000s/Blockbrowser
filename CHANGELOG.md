@@ -5,7 +5,7 @@
 ### Added
 - **HaGeZi Multi PRO list (GPL-3.0)** merged with StevenBlack: ~215,000 domains after removing redundant subdomains (was ~72,500). Covers all 128 domains in the adblock.turtlecute.org test (was 100). `scripts/update-blocklist.sh` now needs `python3`.
 
-## Build 14 (2026-10-12)
+## Build 16 (2026-10-12)
 
 ### Fixed
 - **Blocked requests looked successful.** They were answered with an empty `200 OK`, so ad-block tests (e.g. adblock.turtlecute.org) and page scripts saw them as loaded: the test scored 3%. Blocked requests now fail with `net::ERR_FAILED` before any headers are sent, like uBlock Origin or a DNS blocker.
