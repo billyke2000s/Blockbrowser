@@ -73,9 +73,15 @@ PY
 )"
 }
 echo "Android API level: $(adb shell getprop ro.build.version.sdk | tr -d '\r')"
+# Emulators sometimes show "<System app> isn't responding" right after boot; it covers the screen.
+dismiss_anr(){ for _ in 1 2 3; do dump anr-check >/dev/null 2>&1 || return 0
+    if bounds anr-check text "Wait" | grep -q . && grep -q "isn't responding\|isn&apos;t responding" "$OUT/anr-check.xml"; then
+      echo "::notice::Dismissing an emulator 'isn't responding' dialog"; tap_text anr-check "Wait"; sleep 3; else return 0; fi; done; }
+sleep 20; dismiss_anr
 adb install -r "$APK" || { fail "APK install failed"; exit 1; }
 adb shell am start -W -n "$PKG/.MainActivity" >/dev/null
 sleep 8
+dismiss_anr
 
 # --- 1. Normal layout -------------------------------------------------------
 dump normal || fail "Could not read the screen (normal)"; shot 1-normal
