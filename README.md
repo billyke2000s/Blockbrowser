@@ -1,14 +1,15 @@
 # Block Browser
 
-A lightweight Android browser (built on Android's WebView) that blocks requests to a small list of known ad and tracker domains.
+A lightweight Android browser (built on Android's WebView) that blocks requests to ~72,000 known ad, tracker and malware domains.
 
-> **Status: early prototype.** It works as a basic browser, but the ad blocking is minimal. Expect to still see ads on many sites. See [Limitations](#limitations).
+> **Status: early prototype.** It blocks a large domain list, but it is not as thorough as uBlock Origin or Brave. Some ads will still get through. See [Limitations](#limitations).
 
 ## Features
 - Address bar: type a URL or search terms (searches go to Google)
 - Multiple tabs, back/forward, refresh, home
-- Built-in ad/tracker domain blocklist (14 domains, see below)
-- Toggle ad blocking on/off from the ⋮ menu
+- Ad/tracker/malware blocklist of ~72,000 domains, refreshed on every build (see below)
+- Toggle ad blocking on/off from the ⋮ menu; the menu also shows how many domains are loaded
+- Opening a blocked site directly shows a "Blocked by Block Browser" page instead of a blank screen
 - Android back button goes back in page history
 
 ## Install on your phone
@@ -25,9 +26,10 @@ Requires Android 8.0 (API 26) or newer.
 ## How the APK gets built
 Every push to `main` runs the GitHub Actions workflow in `.github/workflows/android.yml`, which:
 1. Sets up Java 17 and uses the Android SDK already installed on GitHub's Ubuntu runner (adds platform 35 / build-tools 35.0.0).
-2. Runs `gradle :app:assembleDebug` with Gradle 8.9.
-3. Uploads the APK as a workflow artifact (`BlockBrowser-debug-apk`).
-4. Creates a GitHub Release `build-<run number>` with the APK attached.
+2. Downloads the latest blocklist with `scripts/update-blocklist.sh` (falls back to the committed copy if the download fails).
+3. Runs `gradle :app:assembleDebug` with Gradle 8.9.
+4. Uploads the APK as a workflow artifact (`BlockBrowser-debug-apk`).
+5. Creates a GitHub Release `build-<run number>` with the APK attached.
 
 Pull requests and manual runs on other branches build and upload the artifact but **do not** create a release. You can start a build manually from **Actions → Build and publish Android APK → Run workflow**.
 
@@ -52,11 +54,17 @@ Output: `app/build/outputs/apk/debug/app-debug.apk`. Install to a connected phon
 Alternatively, open the folder in Android Studio and press Run.
 
 ## How the ad blocking works
-`MainActivity` overrides `WebViewClient.shouldInterceptRequest`. For every request the page makes, it checks the hostname against a hard-coded set of domains (the `blocked` set near the top of `MainActivity.java`). If the host is one of them, or a subdomain of one, the request gets an empty response instead of being fetched.
+`MainActivity` overrides `WebViewClient.shouldInterceptRequest`. Every request a page makes (scripts, images, iframes, tracking pixels) is checked by hostname. If the host, or any parent domain of it, is on the blocklist, the request gets an empty response instead of being fetched. For example, `stats.g.doubleclick.net` is blocked because `doubleclick.net` is listed.
 
-Current blocklist: `doubleclick.net`, `googlesyndication.com`, `googleadservices.com`, `adnxs.com`, `adsrvr.org`, `taboola.com`, `outbrain.com`, `scorecardresearch.com`, `criteo.com`, `pubmatic.com`, `rubiconproject.com`, `openx.net`, `amazon-adsystem.com`, `facebook.net`.
+**The list:** `app/src/main/assets/blocklist.txt`, one domain per line, generated from the [StevenBlack unified hosts list](https://github.com/StevenBlack/hosts) (ads + malware, MIT licence). It is loaded into memory in the background when the app starts, which takes a fraction of a second. Until it has loaded, a small built-in list of 14 major ad networks (`BUILTIN_BLOCKED` in `MainActivity.java`) is used.
 
-To block another domain, add it to that set and rebuild.
+**Updating the list:** CI refreshes it automatically on every build. To update the committed copy yourself, run from the repo root:
+```
+./scripts/update-blocklist.sh
+```
+then commit `app/src/main/assets/blocklist.txt`.
+
+**Adding your own domains:** add them to `BUILTIN_BLOCKED` in `MainActivity.java` (edits to `blocklist.txt` are overwritten by the script).
 
 Note: this only affects pages loaded **inside Block Browser**. It does not block ads in other apps or system-wide.
 
@@ -67,12 +75,16 @@ Note: this only affects pages loaded **inside Block Browser**. It does not block
 | `app/src/main/AndroidManifest.xml` | App declaration, Internet permission, launcher activity |
 | `app/build.gradle.kts` | App build config (package name, SDK versions, version number) |
 | `build.gradle.kts`, `settings.gradle.kts` | Root Gradle config (Android Gradle Plugin 8.7.3) |
+| `app/src/main/assets/blocklist.txt` | Generated domain blocklist (don't edit by hand) |
+| `scripts/update-blocklist.sh` | Downloads and regenerates the blocklist |
 | `.github/workflows/android.yml` | CI build and release publishing |
 | `CHANGELOG.md` | History of changes |
 
 ## Limitations
-- **Blocklist is tiny.** 14 hard-coded domains; real ad blockers use lists with tens of thousands of entries (e.g. EasyList). Many ads will still load.
-- **No cosmetic filtering.** Blocked ads can leave empty boxes; ads served from the site's own domain aren't blocked.
+- **Domain blocking only.** Ads served from the site's own domain (e.g. YouTube video ads) or matched only by URL path aren't blocked. Full ad blockers also use EasyList-style URL and element rules, which this app doesn't support yet.
+- **No cosmetic filtering.** Blocked ads can leave empty boxes on the page.
+- **Occasional false positives.** A site that needs a listed domain may break; turn adblock off from the ⋮ menu for that visit. There is no per-site allowlist yet.
+- The list only updates when a new APK is built, not inside the app.
 - Ad-block toggle and open tabs are **not saved** when the app is closed.
 - No bookmarks, history screen, downloads, incognito mode or per-site settings.
 - Package name is still the placeholder `com.example.blockbrowser`; change it before any public/Play Store release.
