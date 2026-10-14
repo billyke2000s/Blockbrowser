@@ -1,104 +1,67 @@
 # Block Browser
 
-A lightweight Android browser (built on Android's WebView) that blocks requests to ~215,000 known ad, tracker, telemetry and malware domains (and all their subdomains).
+**Browse freely. Block distractions. Stay in control.**
 
-> **Status: early prototype.** It blocks a large domain list, but it is not as thorough as uBlock Origin or Brave. Some ads will still get through. See [Limitations](#limitations).
+Block Browser is a lightweight Android web browser with built-in ad and tracker blocking, simple navigation, fullscreen browsing and convenient video downloads. It combines everyday browsing essentials with privacy-focused controls in a clean, straightforward interface.
 
-## Features
-- Address bar: type a URL or search terms (searches go to Google)
-- Multiple tabs, back/forward, refresh, home
-- Blocklist of ~215,000 domains, refreshed on every build (see below). Scores 128/128 on the [adblock.turtlecute.org](https://adblock.turtlecute.org) domain list.
-- Toggle ad blocking on/off from the ⋮ menu; the menu also shows how many domains are loaded
-- Opening a blocked site directly shows a "Blocked by Block Browser" page instead of a blank screen
-- **Full screen:** ⋮ → *Full screen* hides the app's bars and the phone's status/navigation bars. Leave with Back or the *Exit full screen* button. Sites' own full-screen buttons (e.g. on videos) work too
-- Toolbar stays below the phone's status bar, including on Android 15+ (which draws apps edge-to-edge)
-- Android back button goes back in page history
+## Highlights
 
-## Install on your phone
-1. On your phone, open the repo's **[Releases](../../releases)** page.
-2. Open the newest `build-N` release and download **`BlockBrowser-debug.apk`**.
-3. Open the downloaded file. Android will ask you to allow installs from your browser/file manager ("Install unknown apps") — allow it, then tap **Install**.
+- **Built-in ad and tracker blocking** — filters requests against a curated blocklist of approximately 215,000 known advertising, tracking and malicious domains, including subdomains.
+- **Adblock controls** — enable or disable blocking from a dedicated menu, and see how many requests have been blocked during your session.
+- **Video downloads** — tap the **↓** button on the browser toolbar to find direct video files on the current page and download them.
+- **Download library** — open **Downloads** from the ⋮ menu to see files saved through the browser. Play compatible videos inside Block Browser or choose another installed app.
+- **Fullscreen browsing** — hide browser and system bars for a more immersive experience. The fullscreen control fades away after a few seconds; tap its position to reveal it again.
+- **Multiple tabs** — switch between pages without losing your place.
+- **Quick navigation** — address-bar search, back, forward, refresh, home and edge-swipe navigation.
+- **Desktop mode and dark websites** — optional viewing controls, with dark rendering support depending on Android version and website.
+- **Privacy dashboard** — view session-level blocking statistics.
 
-Requires Android 8.0 (API 26) or newer.
+## Get Block Browser
 
-**Why "debug"?** The APK is signed with an automatically generated debug key, not a permanent release key. That has two consequences:
-- Play Protect may warn about it. That is expected for self-built apps.
-- If an update refuses to install ("App not installed" / signature conflict), uninstall the old version first. Uninstalling deletes the app's data (cookies, logins).
+1. Visit the [Releases](../../releases) page.
+2. Download the latest available Android APK.
+3. Open the APK on your Android device and follow the installation prompts.
 
-## How the APK gets built
-Every push to `main` runs the GitHub Actions workflow in `.github/workflows/android.yml`, which:
-1. Sets up Java 17 and uses the Android SDK already installed on GitHub's Ubuntu runner (adds platform 35 / build-tools 35.0.0).
-2. Downloads the latest blocklist with `scripts/update-blocklist.sh` (falls back to the committed copy if the download fails).
-3. Runs `gradle :app:assembleDebug` with Gradle 8.9.
-4. Uploads the APK as a workflow artifact (`BlockBrowser-debug-apk`).
-5. Creates a GitHub Release `build-<run number>` with the APK attached.
+**Android 8.0 or newer required.** Available builds are currently debug-signed; installing a newer build signed with a different key may require uninstalling the previous version, which can remove local app data.
 
-Pull requests and manual runs on other branches build and upload the artifact but **do not** create a release. You can start a build manually from **Actions → Build and publish Android APK → Run workflow**.
+## Using Block Browser
 
-If a build fails, open the failed run in the Actions tab and expand the red step to see the error.
+**Download a video:** Open a page with a directly accessible video and tap **↓** in the main toolbar. Select the video URL to download.
 
-## Build locally
-Requirements:
-- JDK 17
-- Android SDK with `platforms;android-35` and `build-tools;35.0.0` (installing Android Studio gives you these)
-- Gradle 8.9 (the repo has no Gradle wrapper yet, so Gradle must be installed separately)
+**Find downloaded files:** Open the **⋮ menu → Downloads**. Select a completed download to play it in Block Browser or open it with another compatible app.
 
-Tell Gradle where the SDK is, either with the `ANDROID_HOME` environment variable or a `local.properties` file in the repo root (this file is git-ignored):
-```
-sdk.dir=/path/to/Android/Sdk
-```
-Then build:
-```
+**Control ad blocking:** Open **⋮ → Adblock** to change the blocking setting and view statistics.
+
+**Go fullscreen:** Open **⋮ → Full screen**. The floating fullscreen control fades after three seconds. Tap its original location to show it again, then tap it to exit; Android's Back action also exits fullscreen.
+
+## Built for a cleaner web
+
+Block Browser checks web requests against its domain blocklist before allowing them through. This helps reduce unwanted advertising, tracking and malicious connections while browsing inside the app.
+
+The blocklist combines [StevenBlack's hosts](https://github.com/StevenBlack/hosts) and [HaGeZi Multi PRO](https://github.com/hagezi/dns-blocklists). It is refreshed as part of the repository's build workflow.
+
+Domain filtering is not the same as full content filtering: first-party advertisements, some embedded ads and certain video ads may still appear. If a website fails to load correctly, try temporarily disabling ad blocking.
+
+Video downloading works with discoverable, directly accessible media URLs. Protected streams, DRM video and some streaming-site playback formats cannot be downloaded by this feature.
+
+## Build from source
+
+The app uses Android WebView and Java, with Gradle-based Android builds.
+
+Requirements: JDK 17, Android SDK platform 35, Android build tools 35.0.0 and Gradle 8.9.
+
+```bash
 gradle :app:assembleDebug
 ```
-Output: `app/build/outputs/apk/debug/app-debug.apk`. Install to a connected phone with `adb install -r app/build/outputs/apk/debug/app-debug.apk`.
 
-Alternatively, open the folder in Android Studio and press Run.
+The resulting APK is located at `app/build/outputs/apk/debug/app-debug.apk`.
 
-## How the ad blocking works
-`MainActivity` overrides `WebViewClient.shouldInterceptRequest`. Every request a page makes (scripts, images, iframes, tracking pixels) is checked by hostname. If the host, or any parent domain of it, is on the blocklist, the request is made to fail with a network error (the same result a page sees with uBlock Origin or a DNS blocker), so nothing is downloaded and the page's ad code sees the load fail. For example, `stats.g.doubleclick.net` is blocked because `doubleclick.net` is listed.
+GitHub Actions builds APK artifacts for pull requests and publishes build releases from the main branch.
 
-**The list:** `app/src/main/assets/blocklist.txt`, one domain per line, generated by merging two lists:
-- [StevenBlack unified hosts](https://github.com/StevenBlack/hosts): ads and malware, MIT licence
-- [HaGeZi Multi PRO](https://github.com/hagezi/dns-blocklists): ads, trackers, telemetry, phishing, scams, GPL-3.0 licence
+## Open-source components
 
-Subdomains of domains already on the list are dropped, since they are blocked anyway. The list is about 4 MB, adds about 1.5 MB to the APK, and uses roughly 20–25 MB of memory. It is loaded into memory in the background when the app starts, which takes a fraction of a second. Until it has loaded, a small built-in list of 14 major ad networks (`BUILTIN_BLOCKED` in `MainActivity.java`) is used.
+Block Browser incorporates third-party domain lists, including StevenBlack hosts (MIT) and HaGeZi Multi PRO (GPL-3.0). Check the applicable upstream licences and distribution obligations when redistributing builds.
 
-**Updating the list:** CI refreshes it automatically on every build. To update the committed copy yourself, run from the repo root:
-```
-./scripts/update-blocklist.sh
-```
-(needs `curl` and `python3`)
-then commit `app/src/main/assets/blocklist.txt`.
+---
 
-**Adding your own domains:** add them to `BUILTIN_BLOCKED` in `MainActivity.java` (edits to `blocklist.txt` are overwritten by the script).
-
-Note: this only affects pages loaded **inside Block Browser**. It does not block ads in other apps or system-wide.
-
-## Project layout
-| File | Purpose |
-|---|---|
-| `app/src/main/java/com/example/blockbrowser/MainActivity.java` | All app code: UI (built in code, no XML layouts), tabs, navigation, request blocking |
-| `app/src/main/AndroidManifest.xml` | App declaration, Internet permission, launcher activity |
-| `app/build.gradle.kts` | App build config (package name, SDK versions, version number) |
-| `build.gradle.kts`, `settings.gradle.kts` | Root Gradle config (Android Gradle Plugin 8.7.3) |
-| `app/src/main/assets/blocklist.txt` | Generated domain blocklist (don't edit by hand) |
-| `scripts/update-blocklist.sh` | Downloads and regenerates the blocklist |
-| `.github/workflows/android.yml` | CI build and release publishing |
-| `.github/workflows/ui-check.yml`, `scripts/ui-check.sh` | Emulator UI test (see `TESTING.md`) |
-| `TESTING.md` | What is tested and how |
-| `CHANGELOG.md` | History of changes |
-
-## Licensing note
-The bundled HaGeZi list is GPL-3.0. Publishing APKs that contain it arguably means the app should also be released under GPL-3.0. The repo does not currently have a licence file; add one before distributing the app more widely. To go back to the MIT-only list, remove the HaGeZi download from `scripts/update-blocklist.sh`.
-
-## Limitations
-- **Domain blocking only.** Ads served from the site's own domain (e.g. YouTube video ads) or matched only by URL path aren't blocked. Full ad blockers also use EasyList-style URL and element rules, which this app doesn't support yet.
-- **No cosmetic filtering.** Blocked ads can leave empty boxes on the page.
-- **Occasional false positives.** HaGeZi PRO is aggressive (it blocks whole services such as Sentry and Bugsnag crash reporting). A site that needs a listed domain may break; turn adblock off from the ⋮ menu for that visit. There is no per-site allowlist yet.
-- The list only updates when a new APK is built, not inside the app.
-- Ad-block toggle and open tabs are **not saved** when the app is closed.
-- No bookmarks, history screen, downloads, incognito mode or per-site settings.
-- Package name is still the placeholder `com.example.blockbrowser`; change it before any public/Play Store release.
-- Only debug-signed builds are produced.
-- Automated tests cover only the toolbar position and full-screen mode (see `TESTING.md`); nothing else is tested automatically.
+**Block Browser — a simpler way to browse Android.**
