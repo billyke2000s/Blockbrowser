@@ -82,6 +82,33 @@ public class MainActivity extends Activity {
     @Override public void onHideCustomView(){hideCustomView();}};
   void hideCustomView(){if(customView==null)return;outer.removeView(customView);customView=null;if(customViewCallback!=null)customViewCallback.onCustomViewHidden();customViewCallback=null;setFullscreen(immersiveRequested);}
   boolean isBlocked(String url){if(!blockAds)return false;try{String host=android.net.Uri.parse(url).getHost();if(host==null)return false;host=host.toLowerCase(Locale.ROOT);Set<String> set=blocked;while(true){if(set.contains(host)){blockedCount++;return true;}int dot=host.indexOf('.');if(dot<0||dot==host.length()-1)break;host=host.substring(dot+1);}}catch(Exception ignored){}return false;}
+
+  void copyText(String label,String value){android.content.ClipboardManager clipboard=(android.content.ClipboardManager)getSystemService(CLIPBOARD_SERVICE);clipboard.setPrimaryClip(ClipData.newPlainText(label,value));Toast.makeText(this,"Copied "+label.toLowerCase(Locale.ROOT),Toast.LENGTH_SHORT).show();}
+  void shareLink(String url){Intent intent=new Intent(Intent.ACTION_SEND);intent.setType("text/plain");intent.putExtra(Intent.EXTRA_TEXT,url);startActivity(Intent.createChooser(intent,"Share link"));}
+  boolean showPageContextMenu(WebView w){
+    WebView.HitTestResult hit=w.getHitTestResult();if(hit==null)return false;
+    int type=hit.getType();String url=hit.getExtra();boolean image=type==WebView.HitTestResult.IMAGE_TYPE||type==WebView.HitTestResult.SRC_IMAGE_ANCHOR_TYPE;
+    boolean link=type==WebView.HitTestResult.SRC_ANCHOR_TYPE||type==WebView.HitTestResult.SRC_IMAGE_ANCHOR_TYPE;
+    if(!image&&!link)return false;
+    if(url==null||url.isEmpty())return false;
+    final String target=url;
+    ArrayList<String> actions=new ArrayList<>();
+    if(link){actions.add("Open link");actions.add("Open link in new tab");actions.add("Copy link address");actions.add("Share link");}
+    if(image){actions.add("Open image");actions.add("Save image");actions.add("Copy image address");}
+    new AlertDialog.Builder(this).setTitle(image?"Image options":"Link options").setItems(actions.toArray(new String[0]),(dialog,choice)->{
+      String action=actions.get(choice);
+      switch(action){
+        case "Open link":w.loadUrl(target);break;
+        case "Open link in new tab":newTab(target);break;
+        case "Copy link address":copyText("Link",target);break;
+        case "Share link":shareLink(target);break;
+        case "Open image":newTab(target);break;
+        case "Save image":downloadUrl(target,w.getSettings().getUserAgentString(),null,null);break;
+        case "Copy image address":copyText("Image address",target);break;
+      }
+    }).show();
+    return true;
+  }
   void newTab(String url){WebView w=new WebView(this);w.setBackgroundColor(Color.WHITE);WebSettings s=w.getSettings();s.setJavaScriptEnabled(true);s.setDomStorageEnabled(true);s.setSupportMultipleWindows(false);s.setBuiltInZoomControls(true);s.setDisplayZoomControls(false);s.setMediaPlaybackRequiresUserGesture(false);if(Build.VERSION.SDK_INT>=29)s.setForceDark(prefs.getBoolean("dark",false)?WebSettings.FORCE_DARK_ON:WebSettings.FORCE_DARK_OFF);
     w.setWebViewClient(new WebViewClient(){@Override public WebResourceResponse shouldInterceptRequest(WebView view,WebResourceRequest req){if(!isBlocked(req.getUrl().toString()))return null;
       if(req.isForMainFrame()){String html="<html><body style=\"font-family:sans-serif;padding:24px\"><h3>Blocked by Block Browser</h3><p>"+android.text.TextUtils.htmlEncode(String.valueOf(req.getUrl().getHost()))+" is on the ad/tracker blocklist.</p><p>Turn adblock off in the \u22ee menu to open it anyway.</p></body></html>";
@@ -92,6 +119,7 @@ public class MainActivity extends Activity {
       return new WebResourceResponse("text/plain","UTF-8",new FailingStream());}
     @Override public void onPageStarted(WebView view,String url,android.graphics.Bitmap favicon){pageLoading.add(view);}
     @Override public void onPageFinished(WebView view,String url){if(current>=0&&tabs.get(current)==view)address.setText(url);saveVisit(url,view.getTitle());pageLoading.remove(view);Integer y=restoreY.remove(view);if(y==null){android.util.SparseIntArray positions=pagePositions.get(view);WebBackForwardList history=view.copyBackForwardList();if(positions!=null)y=positions.get(history.getCurrentIndex(),0);}if(y!=null&&y>0){final int targetY=y;view.postDelayed(()->view.scrollTo(0,targetY),200);view.postDelayed(()->view.scrollTo(0,targetY),850);}refreshTabs();scheduleSessionSave();}});
+    w.setOnLongClickListener(v->showPageContextMenu(w));
     w.setDownloadListener((downloadLink,userAgent,disposition,mime,length)->downloadUrl(downloadLink,userAgent,disposition,mime));
     w.setOnTouchListener((v,event)->{if(event.getAction()==MotionEvent.ACTION_DOWN){downX=event.getX();downY=event.getY();}else if(event.getAction()==MotionEvent.ACTION_UP){float dx=event.getX()-downX;if(Math.abs(dx)>dp(110)&&Math.abs(event.getY()-downY)<dp(90)&&downX<dp(35)){if(dx>0&&w.canGoBack())w.goBack();else if(dx<0&&w.canGoForward())w.goForward();return true;}}return false;});
     w.setWebChromeClient(chromeClient);pagePositions.put(w,new android.util.SparseIntArray());w.setOnScrollChangeListener((v,x,y,oldX,oldY)->{if(!pageLoading.contains(w)){int index=w.copyBackForwardList().getCurrentIndex();if(index>=0)pagePositions.get(w).put(index,y);}scheduleSessionSave();});tabs.add(w);switchTab(tabs.size()-1);w.loadUrl(url);scheduleSessionSave();
