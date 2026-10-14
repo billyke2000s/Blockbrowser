@@ -99,6 +99,21 @@ public class MainActivity extends Activity {
       }).setNegativeButton("Deny",(d,n)->callback.invoke(origin,false,false)).setOnCancelListener(d->callback.invoke(origin,false,false)).show();
     });}
 
+    @Override public boolean onCreateWindow(WebView source,boolean isDialog,boolean isUserGesture,Message resultMsg){
+      if(!isUserGesture)return false;
+      WebView temporary=new WebView(MainActivity.this);
+      temporary.getSettings().setJavaScriptEnabled(true);
+      temporary.setWebViewClient(new WebViewClient(){
+        boolean opened=false;
+        @Override public void onPageStarted(WebView view,String url,android.graphics.Bitmap favicon){
+          if(opened)return;opened=true;
+          if(url.startsWith("https://")||url.startsWith("http://"))newTab(url,true);
+          view.post(()->{view.stopLoading();view.destroy();});
+        }
+      });
+      WebView.WebViewTransport transport=(WebView.WebViewTransport)resultMsg.obj;
+      transport.setWebView(temporary);resultMsg.sendToTarget();return true;
+    }
     @Override public void onShowCustomView(View view,CustomViewCallback cb){if(customView!=null){cb.onCustomViewHidden();return;}
       customView=view;customViewCallback=cb;fullscreenBeforeVideo=fullscreen;view.setBackgroundColor(Color.BLACK);outer.addView(view,new FrameLayout.LayoutParams(-1,-1));setFullscreen(true);}
     @Override public void onHideCustomView(){hideCustomView();}};
@@ -140,7 +155,7 @@ public class MainActivity extends Activity {
     return true;
   }
   void newTab(String url){newTab(url,false);}
-  void newTab(String url,boolean background){int previous=current;WebView w=new WebView(this);w.setBackgroundColor(Color.WHITE);WebSettings s=w.getSettings();s.setJavaScriptEnabled(true);s.setDomStorageEnabled(true);s.setGeolocationEnabled(true);CookieManager.getInstance().setAcceptThirdPartyCookies(w,prefs.getBoolean("third_party_cookies",false));s.setTextZoom(prefs.getInt("text_zoom",100));s.setSupportMultipleWindows(false);s.setBuiltInZoomControls(true);s.setDisplayZoomControls(false);s.setMediaPlaybackRequiresUserGesture(false);if(Build.VERSION.SDK_INT>=29)s.setForceDark(prefs.getBoolean("dark",false)?WebSettings.FORCE_DARK_ON:WebSettings.FORCE_DARK_OFF);
+  void newTab(String url,boolean background){int previous=current;WebView w=new WebView(this);w.setBackgroundColor(Color.WHITE);WebSettings s=w.getSettings();s.setJavaScriptEnabled(true);s.setDomStorageEnabled(true);s.setGeolocationEnabled(true);CookieManager.getInstance().setAcceptThirdPartyCookies(w,prefs.getBoolean("third_party_cookies",false));s.setTextZoom(prefs.getInt("text_zoom",100));s.setSupportMultipleWindows(true);s.setBuiltInZoomControls(true);s.setDisplayZoomControls(false);s.setMediaPlaybackRequiresUserGesture(false);if(Build.VERSION.SDK_INT>=29)s.setForceDark(prefs.getBoolean("dark",false)?WebSettings.FORCE_DARK_ON:WebSettings.FORCE_DARK_OFF);
     w.setWebViewClient(new WebViewClient(){@Override public WebResourceResponse shouldInterceptRequest(WebView view,WebResourceRequest req){if(!isBlocked(req.getUrl().toString()))return null;
       if(req.isForMainFrame()){String html="<html><body style=\"font-family:sans-serif;padding:24px\"><h3>Blocked by Block Browser</h3><p>"+android.text.TextUtils.htmlEncode(String.valueOf(req.getUrl().getHost()))+" is on the ad/tracker blocklist.</p><p>Turn adblock off in the \u22ee menu to open it anyway.</p></body></html>";
         return new WebResourceResponse("text/html","UTF-8",new java.io.ByteArrayInputStream(html.getBytes(java.nio.charset.StandardCharsets.UTF_8)));}
