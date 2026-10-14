@@ -6,12 +6,17 @@ Block Browser is a lightweight Android web browser with built-in ad and tracker 
 
 ## Highlights
 
+- **Bookmarks and history** — save favourite pages, revisit recently opened websites, and clear saved entries.
+- **Find and share** — search text within a page and share links through Android apps.
+- **Browsing data controls** — clear cookies, cache, web storage and history without deleting bookmarks or downloads.
+
 - **Built-in ad and tracker blocking** — filters requests against a curated blocklist of approximately 215,000 known advertising, tracking and malicious domains, including subdomains.
 - **Adblock controls** — enable or disable blocking from a dedicated menu, and see how many requests have been blocked during your session.
 - **Video downloads** — tap the **↓** button on the browser toolbar to find direct video files on the current page and download them.
 - **Download library** — open **Downloads** from the ⋮ menu to see files saved through the browser. Play compatible videos inside Block Browser or choose another installed app.
 - **Fullscreen browsing** — hide browser and system bars for a more immersive experience. The fullscreen control fades away after a few seconds; tap its position to reveal it again.
-- **Search engine choice** — select Google, Bing, DuckDuckGo, Brave Search, Startpage, Ecosia, Yahoo, Qwant, Mojeek or SearXNG from **⋮ → Search engine**. The selection is saved, and the chooser displays search-engine favicons when available.\n- **Multiple tabs** — switch between pages without losing your place.
+- **Search engine choice** — select Google, Bing, DuckDuckGo, Brave Search, Startpage, Ecosia, Yahoo, Qwant, Mojeek or SearXNG from **⋮ → Search engine**. The selection is saved, and the chooser displays search-engine favicons when available.
+- **Multiple tabs** — switch between pages without losing your place.
 - **Quick navigation** — address-bar search, back, forward, refresh, home and edge-swipe navigation.
 - **Desktop mode and dark websites** — optional viewing controls, with dark rendering support depending on Android version and website.
 - **Privacy dashboard** — view session-level blocking statistics.
@@ -30,7 +35,9 @@ Block Browser is a lightweight Android web browser with built-in ad and tracker 
 
 **Find downloaded files:** Open the **⋮ menu → Downloads**. Select a completed download to play it in Block Browser or open it with another compatible app.
 
-**Choose your search engine:** Open **⋮ → Search engine**, select a provider and search directly from the address bar. Google is the default.\n\n**Control ad blocking:** Open **⋮ → Adblock** to change the blocking setting and view statistics.
+**Choose your search engine:** Open **⋮ → Search engine**, select a provider and search directly from the address bar. Google is the default.
+
+**Control ad blocking:** Open **⋮ → Adblock** to change the blocking setting and view statistics.
 
 **Go fullscreen:** Open **⋮ → Full screen**. The floating fullscreen control fades after three seconds. Tap its original location to show it again, then tap it to exit; Android's Back action also exits fullscreen.
 
