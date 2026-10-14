@@ -13,6 +13,7 @@ import android.database.Cursor;
 import android.provider.MediaStore;
 import android.provider.OpenableColumns;
 import android.graphics.Rect;
+import android.graphics.Typeface;
 import android.content.res.Configuration;
 import java.util.*;
 
@@ -91,7 +92,29 @@ public class MainActivity extends Activity {
   }
   void switchTab(int n){if(n<0||n>=tabs.size())return;current=n;frame.removeAllViews();WebView w=tabs.get(n);if(w.getParent()!=null)((android.view.ViewGroup)w.getParent()).removeView(w);frame.addView(w);address.setText(w.getUrl()==null?"":w.getUrl());refreshTabs();}
   void refreshTabs(){tabbar.removeAllViews();for(int i=0;i<tabs.size();i++){final int j=i;String title=tabs.get(i).getTitle();if(title==null||title.isEmpty())title="Tab "+(i+1);if(title.length()>13)title=title.substring(0,13)+"…";TextView t=button((i==current?"● ":"")+title,()->switchTab(j));t.setTextSize(12);tabbar.addView(t);}tabbar.addView(button("+",()->newTab("https://www.google.com")));}
-  void navigate(String text){text=text.trim();if(text.isEmpty())return;String url;if(text.startsWith("https://")||text.startsWith("http://"))url=text;else if(text.contains(".")&&!text.contains(" "))url="https://"+text;else url="https://www.google.com/search?q="+android.net.Uri.encode(text);tabs.get(current).loadUrl(url);((InputMethodManager)getSystemService(INPUT_METHOD_SERVICE)).hideSoftInputFromWindow(address.getWindowToken(),0);address.clearFocus();}
+  static final String[] ENGINE_NAMES={"Google","Bing","DuckDuckGo","Brave Search","Startpage","Ecosia","Yahoo","Qwant","Mojeek","SearXNG"};
+  static final String[] ENGINE_URLS={"https://www.google.com/search?q=","https://www.bing.com/search?q=","https://duckduckgo.com/?q=","https://search.brave.com/search?q=","https://www.startpage.com/sp/search?query=","https://www.ecosia.org/search?q=","https://search.yahoo.com/search?p=","https://www.qwant.com/?q=","https://www.mojeek.com/search?q=","https://searx.be/search?q="};
+  static final String[] ENGINE_DOMAINS={"google.com","bing.com","duckduckgo.com","search.brave.com","startpage.com","ecosia.org","yahoo.com","qwant.com","mojeek.com","searx.be"};
+  void searchEngineMenu(){
+    int selected=prefs.getInt("search_engine",0);if(selected<0||selected>=ENGINE_NAMES.length)selected=0;
+    LinearLayout list=new LinearLayout(this);list.setOrientation(LinearLayout.VERTICAL);
+    ScrollView scroll=new ScrollView(this);scroll.addView(list);
+    final int currentSelection=selected;
+    AlertDialog dialog=new AlertDialog.Builder(this).setTitle("Choose search engine").setView(scroll).setNegativeButton("Cancel",null).create();
+    for(int i=0;i<ENGINE_NAMES.length;i++){final int index=i;LinearLayout item=new LinearLayout(this);item.setGravity(Gravity.CENTER_VERTICAL);item.setPadding(dp(16),dp(7),dp(16),dp(7));
+      ImageView logo=new ImageView(this);logo.setContentDescription(ENGINE_NAMES[i]+" logo");logo.setScaleType(ImageView.ScaleType.FIT_CENTER);
+      LinearLayout.LayoutParams iconLp=new LinearLayout.LayoutParams(dp(28),dp(28));iconLp.setMargins(0,0,dp(16),0);item.addView(logo,iconLp);
+      // Site favicons are displayed when available, with a local lettermark fallback.
+      TextView letter=new TextView(this);letter.setText(ENGINE_NAMES[i].substring(0,1));letter.setTextColor(Color.WHITE);letter.setTextSize(20);letter.setTypeface(null,Typeface.BOLD);letter.setGravity(Gravity.CENTER);
+      FrameLayout iconHolder=new FrameLayout(this);item.removeView(logo);iconHolder.addView(letter,new FrameLayout.LayoutParams(-1,-1));iconHolder.addView(logo,new FrameLayout.LayoutParams(-1,-1));item.addView(iconHolder,0,iconLp);
+      String iconUrl="https://www.google.com/s2/favicons?domain="+ENGINE_DOMAINS[i]+"&sz=64";
+      new Thread(()->{try(java.io.InputStream in=new java.net.URL(iconUrl).openStream()){android.graphics.Bitmap bitmap=android.graphics.BitmapFactory.decodeStream(in);if(bitmap!=null)runOnUiThread(()->logo.setImageBitmap(bitmap));}catch(Exception ignored){} }).start();
+      TextView name=new TextView(this);name.setText(ENGINE_NAMES[i]+(i==currentSelection?"  ✓":""));name.setTextColor(Color.WHITE);name.setTextSize(16);item.addView(name);
+      item.setOnClickListener(v->{prefs.edit().putInt("search_engine",index).apply();Toast.makeText(this,"Search engine: "+ENGINE_NAMES[index],Toast.LENGTH_SHORT).show();dialog.dismiss();});list.addView(item);
+    }
+    dialog.show();
+  }
+  void navigate(String text){text=text.trim();if(text.isEmpty())return;String url;if(text.startsWith("https://")||text.startsWith("http://"))url=text;else if(text.contains(".")&&!text.contains(" "))url="https://"+text;else {int engine=prefs.getInt("search_engine",0);if(engine<0||engine>=ENGINE_URLS.length)engine=0;url=ENGINE_URLS[engine]+android.net.Uri.encode(text);}tabs.get(current).loadUrl(url);((InputMethodManager)getSystemService(INPUT_METHOD_SERVICE)).hideSoftInputFromWindow(address.getWindowToken(),0);address.clearFocus();}
 
   void downloadUrl(String url,String agent,String disposition,String mime){
     if(!url.startsWith("https://")&&!url.startsWith("http://")){Toast.makeText(this,"This video cannot be downloaded directly",Toast.LENGTH_LONG).show();return;}
@@ -127,15 +150,15 @@ public class MainActivity extends Activity {
   void adblockMenu(){String[] options={blockAds?"Turn adblock off":"Turn adblock on","Blocked requests this session: "+blockedCount,listLoaded?"Domains loaded: "+blocked.size():"Blocklist loading"};
     new AlertDialog.Builder(this).setTitle("Adblock").setItems(options,(d,n)->{if(n==0){blockAds=!blockAds;prefs.edit().putBoolean("adblock",blockAds).apply();Toast.makeText(this,blockAds?"Adblock enabled":"Adblock disabled",Toast.LENGTH_SHORT).show();}}).show();
   }
-  void menu(){String[] items={"Adblock","Downloads","New tab","Close tab","Home","Full screen","Desktop site","Dark websites","Privacy dashboard"};
+  void menu(){String[] items={"Adblock","Downloads","Search engine","New tab","Close tab","Home","Full screen","Desktop site","Dark websites","Privacy dashboard"};
     new AlertDialog.Builder(this).setItems(items,(d,which)->{switch(which){
       case 0:adblockMenu();break;case 1:downloads();break;
-      case 2:newTab("https://www.google.com");break;
-      case 3:if(tabs.size()>1){WebView w=tabs.remove(current);frame.removeView(w);w.destroy();switchTab(Math.max(0,current-1));}break;
-      case 4:navigate("https://www.google.com");break;case 5:setFullscreen(true);break;
-      case 6:if(current>=0){WebSettings settings=tabs.get(current).getSettings();boolean desktop=!settings.getUserAgentString().contains("Desktop BlockBrowser");settings.setUserAgentString(desktop?"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Desktop BlockBrowser":null);tabs.get(current).reload();}break;
-      case 7:if(Build.VERSION.SDK_INT>=29&&current>=0){boolean dark=!prefs.getBoolean("dark",false);prefs.edit().putBoolean("dark",dark).apply();tabs.get(current).getSettings().setForceDark(dark?WebSettings.FORCE_DARK_ON:WebSettings.FORCE_DARK_OFF);tabs.get(current).reload();}else Toast.makeText(this,"Dark websites requires Android 10+",Toast.LENGTH_SHORT).show();break;
-      case 8:new AlertDialog.Builder(this).setTitle("Privacy dashboard").setMessage("Blocked requests this session: "+blockedCount+"\\nBlocklist domains: "+blocked.size()).setPositiveButton("OK",null).show();break;
+      case 2:searchEngineMenu();break;case 3:newTab("https://www.google.com");break;
+      case 4:if(tabs.size()>1){WebView w=tabs.remove(current);frame.removeView(w);w.destroy();switchTab(Math.max(0,current-1));}break;
+      case 5:navigate("https://www.google.com");break;case 6:setFullscreen(true);break;
+      case 7:if(current>=0){WebSettings settings=tabs.get(current).getSettings();boolean desktop=!settings.getUserAgentString().contains("Desktop BlockBrowser");settings.setUserAgentString(desktop?"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Desktop BlockBrowser":null);tabs.get(current).reload();}break;
+      case 8:if(Build.VERSION.SDK_INT>=29&&current>=0){boolean dark=!prefs.getBoolean("dark",false);prefs.edit().putBoolean("dark",dark).apply();tabs.get(current).getSettings().setForceDark(dark?WebSettings.FORCE_DARK_ON:WebSettings.FORCE_DARK_OFF);tabs.get(current).reload();}else Toast.makeText(this,"Dark websites requires Android 10+",Toast.LENGTH_SHORT).show();break;
+      case 9:new AlertDialog.Builder(this).setTitle("Privacy dashboard").setMessage("Blocked requests this session: "+blockedCount+"\\nBlocklist domains: "+blocked.size()).setPositiveButton("OK",null).show();break;
     }}).show();}
   @Override public void onBackPressed(){if(customView!=null){hideCustomView();return;}if(fullscreen){setFullscreen(false);return;}if(current>=0&&tabs.get(current).canGoBack())tabs.get(current).goBack();else super.onBackPressed();}
   @Override protected void onDestroy(){for(WebView w:tabs){if(w.getParent()!=null)((android.view.ViewGroup)w.getParent()).removeView(w);w.destroy();}super.onDestroy();}
