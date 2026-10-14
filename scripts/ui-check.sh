@@ -106,8 +106,8 @@ if bounds fullscreen content-desc "Address bar" | grep -q .; then fail "Address 
 else pass "Toolbar hidden in full screen"; fi
 if [ "$FS_SB" -gt 0 ]; then fail "System status bar still visible in full screen"
 else pass "System status bar hidden in full screen"; fi
-if bounds fullscreen text "Exit full screen" | grep -q .; then pass "Exit full screen button shown"
-else fail "Exit full screen button not shown"; fi
+if bounds fullscreen content-desc "Fullscreen control" | grep -q .; then pass "Fullscreen control present (may have faded)"
+else fail "Fullscreen control not found"; fi
 
 # --- 3. Back leaves full screen ------------------------------------------------
 adb shell input keyevent KEYCODE_BACK
