@@ -38,8 +38,9 @@ public class MainActivity extends Activity {
   void space(LinearLayout layout,int width){View v=new View(this);layout.addView(v,new LinearLayout.LayoutParams(dp(width),1));}
   void styleDialog(AlertDialog dialog){dialog.getWindow().setBackgroundDrawable(rounded(PANEL,22));}
 
+  android.content.SharedPreferences browserPreferences(){return getSharedPreferences("browser",MODE_PRIVATE);}
   @Override public void onCreate(Bundle b){super.onCreate(b);getWindow().setStatusBarColor(0xff10131a);getWindow().setNavigationBarColor(0xff10131a);
-    prefs=getSharedPreferences("browser",MODE_PRIVATE);blockAds=prefs.getBoolean("adblock",true);immersiveRequested=prefs.getBoolean("fullscreen",false);loadBlocklist();
+    prefs=browserPreferences();blockAds=prefs.getBoolean("adblock",true);immersiveRequested=prefs.getBoolean("fullscreen",false);loadBlocklist();
     root=new LinearLayout(this);root.setOrientation(1);root.setBackgroundColor(SURFACE);
     outer=new FrameLayout(this);outer.setBackgroundColor(SURFACE);outer.addView(root,new FrameLayout.LayoutParams(-1,-1));setContentView(outer);
     setupEdgeToEdge();
