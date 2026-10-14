@@ -40,6 +40,7 @@ public class MainActivity extends Activity {
     address=new EditText(this);address.setContentDescription("Address bar");address.setSingleLine(true);address.setTextColor(Color.WHITE);address.setHintTextColor(0xffa0a0a0);address.setHint("Search or enter URL");address.setTextSize(14);address.setSelectAllOnFocus(true);toolbar.addView(address,new LinearLayout.LayoutParams(0,dp(52),1));
     address.setOnEditorActionListener((v,id,event)->{navigate(address.getText().toString());return true;});
     toolbar.addView(button("↻",()->{if(current>=0)tabs.get(current).reload();}));
+    TextView videoButton=button("↓",this::videoDownload);videoButton.setContentDescription("Download video");toolbar.addView(videoButton);
     toolbar.addView(button("⋮",this::menu));
     tabbar=new LinearLayout(this);tabScroll=new HorizontalScrollView(this);tabScroll.setHorizontalScrollBarEnabled(false);tabScroll.addView(tabbar);root.addView(tabScroll);
     frame=new FrameLayout(this);root.addView(frame,new LinearLayout.LayoutParams(-1,0,1));
@@ -126,15 +127,15 @@ public class MainActivity extends Activity {
   void adblockMenu(){String[] options={blockAds?"Turn adblock off":"Turn adblock on","Blocked requests this session: "+blockedCount,listLoaded?"Domains loaded: "+blocked.size():"Blocklist loading"};
     new AlertDialog.Builder(this).setTitle("Adblock").setItems(options,(d,n)->{if(n==0){blockAds=!blockAds;prefs.edit().putBoolean("adblock",blockAds).apply();Toast.makeText(this,blockAds?"Adblock enabled":"Adblock disabled",Toast.LENGTH_SHORT).show();}}).show();
   }
-  void menu(){String[] items={"Adblock","Download video","Downloads","New tab","Close tab","Home","Full screen","Desktop site","Dark websites","Privacy dashboard"};
+  void menu(){String[] items={"Adblock","Downloads","New tab","Close tab","Home","Full screen","Desktop site","Dark websites","Privacy dashboard"};
     new AlertDialog.Builder(this).setItems(items,(d,which)->{switch(which){
-      case 0:adblockMenu();break;case 1:videoDownload();break;case 2:downloads();break;
-      case 3:newTab("https://www.google.com");break;
-      case 4:if(tabs.size()>1){WebView w=tabs.remove(current);frame.removeView(w);w.destroy();switchTab(Math.max(0,current-1));}break;
-      case 5:navigate("https://www.google.com");break;case 6:setFullscreen(true);break;
-      case 7:if(current>=0){WebSettings settings=tabs.get(current).getSettings();boolean desktop=!settings.getUserAgentString().contains("Desktop BlockBrowser");settings.setUserAgentString(desktop?"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Desktop BlockBrowser":null);tabs.get(current).reload();}break;
-      case 8:if(Build.VERSION.SDK_INT>=29&&current>=0){boolean dark=!prefs.getBoolean("dark",false);prefs.edit().putBoolean("dark",dark).apply();tabs.get(current).getSettings().setForceDark(dark?WebSettings.FORCE_DARK_ON:WebSettings.FORCE_DARK_OFF);tabs.get(current).reload();}else Toast.makeText(this,"Dark websites requires Android 10+",Toast.LENGTH_SHORT).show();break;
-      case 9:new AlertDialog.Builder(this).setTitle("Privacy dashboard").setMessage("Blocked requests this session: "+blockedCount+"\\nBlocklist domains: "+blocked.size()).setPositiveButton("OK",null).show();break;
+      case 0:adblockMenu();break;case 1:downloads();break;
+      case 2:newTab("https://www.google.com");break;
+      case 3:if(tabs.size()>1){WebView w=tabs.remove(current);frame.removeView(w);w.destroy();switchTab(Math.max(0,current-1));}break;
+      case 4:navigate("https://www.google.com");break;case 5:setFullscreen(true);break;
+      case 6:if(current>=0){WebSettings settings=tabs.get(current).getSettings();boolean desktop=!settings.getUserAgentString().contains("Desktop BlockBrowser");settings.setUserAgentString(desktop?"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Desktop BlockBrowser":null);tabs.get(current).reload();}break;
+      case 7:if(Build.VERSION.SDK_INT>=29&&current>=0){boolean dark=!prefs.getBoolean("dark",false);prefs.edit().putBoolean("dark",dark).apply();tabs.get(current).getSettings().setForceDark(dark?WebSettings.FORCE_DARK_ON:WebSettings.FORCE_DARK_OFF);tabs.get(current).reload();}else Toast.makeText(this,"Dark websites requires Android 10+",Toast.LENGTH_SHORT).show();break;
+      case 8:new AlertDialog.Builder(this).setTitle("Privacy dashboard").setMessage("Blocked requests this session: "+blockedCount+"\\nBlocklist domains: "+blocked.size()).setPositiveButton("OK",null).show();break;
     }}).show();}
   @Override public void onBackPressed(){if(customView!=null){hideCustomView();return;}if(fullscreen){setFullscreen(false);return;}if(current>=0&&tabs.get(current).canGoBack())tabs.get(current).goBack();else super.onBackPressed();}
   @Override protected void onDestroy(){for(WebView w:tabs){if(w.getParent()!=null)((android.view.ViewGroup)w.getParent()).removeView(w);w.destroy();}super.onDestroy();}
