@@ -3,7 +3,7 @@
 ## Unreleased
 
 ### Added
-- **Full-screen mode** (⋮ → Full screen): hides the toolbar, tab bar and the phone's status/navigation bars. Back or the *Exit full screen* button leaves it.
+- **Refreshed browser UI:** modern dark surfaces, rounded toolbar controls, improved address-bar spacing and clearer tab selection.\n- **Search engine picker:** choose among Google, Bing, DuckDuckGo, Brave Search, Startpage, Ecosia, Yahoo, Qwant, Mojeek and SearXNG; save the choice between launches and display provider favicons when available.\n- **Video download shortcut:** dedicated ↓ toolbar action to discover direct video sources on a page.\n- **Downloads library:** ⋮ → Downloads lists Android DownloadManager entries, with options to play compatible videos in-app or open files in another app.\n- **Adblock and privacy controls:** dedicated menu and session-level blocked-request statistics; adblock preference persists.\n- **Navigation and display controls:** edge-swipe navigation, desktop user-agent toggle and dark websites toggle (Android 10+).\n- **Full-screen mode** (⋮ → Full screen): hides the toolbar, tab bar and the phone's status/navigation bars. Back or the floating ⛶ control leaves it. The control fades after three seconds and can be revealed by tapping its original position.
 - **Site full screen:** pages' own full-screen buttons (e.g. videos) now work; previously they did nothing.
 - **Emulator UI check** (`.github/workflows/ui-check.yml`, `scripts/ui-check.sh`) on Android 10 and 15, run on pull requests.
 
