@@ -22,6 +22,7 @@ public class MainActivity extends Activity {
   LinearLayout root, toolbar, tabbar; EditText address; FrameLayout frame, outer; HorizontalScrollView tabScroll; TextView exitFs, tabCount, moreButton; Handler handler=new Handler(Looper.getMainLooper()); Runnable fadeTask; long blockedCount=0; android.content.SharedPreferences prefs; java.util.HashMap<String,Boolean> siteAdblock=new java.util.HashMap<>(); float downX,downY;
   boolean fullscreen = false, fullscreenBeforeVideo = false, immersiveRequested = false; View customView; WebChromeClient.CustomViewCallback customViewCallback;
   boolean restoringSession=false; Handler sessionHandler=new Handler(Looper.getMainLooper()); Runnable sessionSave; HashMap<WebView,Integer> restoreY=new HashMap<>(); HashMap<WebView,android.util.SparseIntArray> pagePositions=new HashMap<>(); HashSet<WebView> pageLoading=new HashSet<>();
+  PermissionRequest pendingPermission; GeolocationPermissions.Callback pendingGeo; String pendingGeoOrigin; ValueCallback<Uri[]> pendingUpload; static final int FILE_PICKER=5201;
   ArrayList<WebView> tabs = new ArrayList<>(); int current = -1; volatile boolean blockAds = true;
   static final List<String> BUILTIN_BLOCKED = Arrays.asList("doubleclick.net","googlesyndication.com","googleadservices.com","adnxs.com","adsrvr.org","taboola.com","outbrain.com","scorecardresearch.com","criteo.com","pubmatic.com","rubiconproject.com","openx.net","amazon-adsystem.com","facebook.net");
   // Replaced in one step once assets/blocklist.txt has loaded, so request threads never see a half-built set.
@@ -77,9 +78,35 @@ public class MainActivity extends Activity {
   @Override public void onWindowFocusChanged(boolean hasFocus){super.onWindowFocusChanged(hasFocus);if(hasFocus&&fullscreen)applySystemBars();}
   // Site-requested full screen (e.g. the full-screen button on a YouTube video).
   final WebChromeClient chromeClient=new WebChromeClient(){
+    @Override public boolean onShowFileChooser(WebView view,ValueCallback<Uri[]> callback,FileChooserParams params){
+      if(pendingUpload!=null)pendingUpload.onReceiveValue(null);pendingUpload=callback;
+      try{startActivityForResult(params.createIntent(),FILE_PICKER);return true;}
+      catch(Exception e){pendingUpload=null;callback.onReceiveValue(null);Toast.makeText(MainActivity.this,"File picker unavailable",Toast.LENGTH_SHORT).show();return true;}
+    }
+    @Override public void onPermissionRequest(PermissionRequest request){runOnUiThread(()->{
+      new AlertDialog.Builder(MainActivity.this).setTitle("Website permission").setMessage(request.getOrigin()+" requests camera or microphone access.").setPositiveButton("Allow",(d,n)->{
+        ArrayList<String> needed=new ArrayList<>();for(String resource:request.getResources()){if(PermissionRequest.RESOURCE_VIDEO_CAPTURE.equals(resource))needed.add(android.Manifest.permission.CAMERA);if(PermissionRequest.RESOURCE_AUDIO_CAPTURE.equals(resource))needed.add(android.Manifest.permission.RECORD_AUDIO);}
+        if(needed.isEmpty()){request.deny();return;}
+        pendingPermission=request;requestPermissions(needed.toArray(new String[0]),5202);
+      }).setNegativeButton("Deny",(d,n)->request.deny()).setOnCancelListener(d->request.deny()).show();
+    });}
+    @Override public void onGeolocationPermissionsShowPrompt(String origin,GeolocationPermissions.Callback callback){runOnUiThread(()->{
+      new AlertDialog.Builder(MainActivity.this).setTitle("Location permission").setMessage(origin+" requests your location.").setPositiveButton("Allow",(d,n)->{
+        pendingGeo=callback;pendingGeoOrigin=origin;requestPermissions(new String[]{android.Manifest.permission.ACCESS_COARSE_LOCATION},5203);
+      }).setNegativeButton("Deny",(d,n)->callback.invoke(origin,false,false)).setOnCancelListener(d->callback.invoke(origin,false,false)).show();
+    });}
+
     @Override public void onShowCustomView(View view,CustomViewCallback cb){if(customView!=null){cb.onCustomViewHidden();return;}
       customView=view;customViewCallback=cb;fullscreenBeforeVideo=fullscreen;view.setBackgroundColor(Color.BLACK);outer.addView(view,new FrameLayout.LayoutParams(-1,-1));setFullscreen(true);}
     @Override public void onHideCustomView(){hideCustomView();}};
+  @Override protected void onActivityResult(int code,int result,Intent data){super.onActivityResult(code,result,data);if(code==FILE_PICKER&&pendingUpload!=null){ValueCallback<Uri[]> cb=pendingUpload;pendingUpload=null;cb.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(result,data));}}
+  @Override public void onRequestPermissionsResult(int code,String[] permissions,int[] grants){super.onRequestPermissionsResult(code,permissions,grants);
+    if(code==5202&&pendingPermission!=null){PermissionRequest r=pendingPermission;pendingPermission=null;ArrayList<String> allowed=new ArrayList<>();for(String resource:r.getResources()){
+      if(PermissionRequest.RESOURCE_VIDEO_CAPTURE.equals(resource)&&checkSelfPermission(android.Manifest.permission.CAMERA)==android.content.pm.PackageManager.PERMISSION_GRANTED)allowed.add(resource);
+      if(PermissionRequest.RESOURCE_AUDIO_CAPTURE.equals(resource)&&checkSelfPermission(android.Manifest.permission.RECORD_AUDIO)==android.content.pm.PackageManager.PERMISSION_GRANTED)allowed.add(resource);
+    }if(allowed.isEmpty())r.deny();else r.grant(allowed.toArray(new String[0]));}
+    if(code==5203&&pendingGeo!=null){pendingGeo.invoke(pendingGeoOrigin,grants.length>0&&grants[0]==android.content.pm.PackageManager.PERMISSION_GRANTED,false);pendingGeo=null;pendingGeoOrigin=null;}
+  }
   void hideCustomView(){if(customView==null)return;outer.removeView(customView);customView=null;if(customViewCallback!=null)customViewCallback.onCustomViewHidden();customViewCallback=null;setFullscreen(immersiveRequested);}
   boolean isBlocked(String url){if(!blockAds)return false;try{String host=android.net.Uri.parse(url).getHost();if(host==null)return false;host=host.toLowerCase(Locale.ROOT);Set<String> set=blocked;while(true){if(set.contains(host)){blockedCount++;return true;}int dot=host.indexOf('.');if(dot<0||dot==host.length()-1)break;host=host.substring(dot+1);}}catch(Exception ignored){}return false;}
 
@@ -109,7 +136,7 @@ public class MainActivity extends Activity {
     }).show();
     return true;
   }
-  void newTab(String url){WebView w=new WebView(this);w.setBackgroundColor(Color.WHITE);WebSettings s=w.getSettings();s.setJavaScriptEnabled(true);s.setDomStorageEnabled(true);s.setSupportMultipleWindows(false);s.setBuiltInZoomControls(true);s.setDisplayZoomControls(false);s.setMediaPlaybackRequiresUserGesture(false);if(Build.VERSION.SDK_INT>=29)s.setForceDark(prefs.getBoolean("dark",false)?WebSettings.FORCE_DARK_ON:WebSettings.FORCE_DARK_OFF);
+  void newTab(String url){WebView w=new WebView(this);w.setBackgroundColor(Color.WHITE);WebSettings s=w.getSettings();s.setJavaScriptEnabled(true);s.setDomStorageEnabled(true);s.setGeolocationEnabled(true);CookieManager.getInstance().setAcceptThirdPartyCookies(w,false);s.setSupportMultipleWindows(false);s.setBuiltInZoomControls(true);s.setDisplayZoomControls(false);s.setMediaPlaybackRequiresUserGesture(false);if(Build.VERSION.SDK_INT>=29)s.setForceDark(prefs.getBoolean("dark",false)?WebSettings.FORCE_DARK_ON:WebSettings.FORCE_DARK_OFF);
     w.setWebViewClient(new WebViewClient(){@Override public WebResourceResponse shouldInterceptRequest(WebView view,WebResourceRequest req){if(!isBlocked(req.getUrl().toString()))return null;
       if(req.isForMainFrame()){String html="<html><body style=\"font-family:sans-serif;padding:24px\"><h3>Blocked by Block Browser</h3><p>"+android.text.TextUtils.htmlEncode(String.valueOf(req.getUrl().getHost()))+" is on the ad/tracker blocklist.</p><p>Turn adblock off in the \u22ee menu to open it anyway.</p></body></html>";
         return new WebResourceResponse("text/html","UTF-8",new java.io.ByteArrayInputStream(html.getBytes(java.nio.charset.StandardCharsets.UTF_8)));}
@@ -117,6 +144,7 @@ public class MainActivity extends Activity {
       // empty 200 OK. WebView calls available() before sending headers; if it throws, the request fails
       // outright (see Chromium components/embedder_support/android/util/input_stream_reader.cc).
       return new WebResourceResponse("text/plain","UTF-8",new FailingStream());}
+    @Override public void onReceivedSslError(WebView view,SslErrorHandler sslHandler,android.net.http.SslError error){sslHandler.cancel();runOnUiThread(()->Toast.makeText(MainActivity.this,"Invalid HTTPS certificate — blocked",Toast.LENGTH_LONG).show());}
     @Override public void onPageStarted(WebView view,String url,android.graphics.Bitmap favicon){pageLoading.add(view);}
     @Override public void onPageFinished(WebView view,String url){if(current>=0&&tabs.get(current)==view)address.setText(url);saveVisit(url,view.getTitle());pageLoading.remove(view);Integer y=restoreY.remove(view);if(y==null){android.util.SparseIntArray positions=pagePositions.get(view);WebBackForwardList history=view.copyBackForwardList();if(positions!=null)y=positions.get(history.getCurrentIndex(),0);}if(y!=null&&y>0){final int targetY=y;view.postDelayed(()->view.scrollTo(0,targetY),200);view.postDelayed(()->view.scrollTo(0,targetY),850);}refreshTabs();scheduleSessionSave();}});
     w.setOnLongClickListener(v->showPageContextMenu(w));
