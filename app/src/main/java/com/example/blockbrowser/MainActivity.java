@@ -92,7 +92,7 @@ public class MainActivity extends Activity {
       // outright (see Chromium components/embedder_support/android/util/input_stream_reader.cc).
       return new WebResourceResponse("text/plain","UTF-8",new FailingStream());}
     @Override public void onPageFinished(WebView view,String url){if(current>=0&&tabs.get(current)==view)address.setText(url);saveVisit(url,view.getTitle());refreshTabs();}});
-    w.setDownloadListener((url,userAgent,disposition,mime,length)->downloadUrl(url,userAgent,disposition,mime));
+    w.setDownloadListener((downloadLink,userAgent,disposition,mime,length)->downloadUrl(downloadLink,userAgent,disposition,mime));
     w.setOnTouchListener((v,event)->{if(event.getAction()==MotionEvent.ACTION_DOWN){downX=event.getX();downY=event.getY();}else if(event.getAction()==MotionEvent.ACTION_UP){float dx=event.getX()-downX;if(Math.abs(dx)>dp(110)&&Math.abs(event.getY()-downY)<dp(90)&&downX<dp(35)){if(dx>0&&w.canGoBack())w.goBack();else if(dx<0&&w.canGoForward())w.goForward();return true;}}return false;});
     w.setWebChromeClient(chromeClient);tabs.add(w);switchTab(tabs.size()-1);w.loadUrl(url);
   }
