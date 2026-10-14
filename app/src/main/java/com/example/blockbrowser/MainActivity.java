@@ -233,15 +233,16 @@ public class MainActivity extends Activity {
       }catch(Exception e){Toast.makeText(this,"Could not detect video",Toast.LENGTH_SHORT).show();}
     });
   }
-  void downloads(){DownloadManager dm=(DownloadManager)getSystemService(DOWNLOAD_SERVICE);ArrayList<Long> ids=new ArrayList<>();ArrayList<String> names=new ArrayList<>();
+  void downloads(){DownloadManager dm=(DownloadManager)getSystemService(DOWNLOAD_SERVICE);ArrayList<Long> ids=new ArrayList<>();ArrayList<String> names=new ArrayList<>();ArrayList<Integer> states=new ArrayList<>();
     try(Cursor c=dm.query(new DownloadManager.Query())){int id=c.getColumnIndex(DownloadManager.COLUMN_ID),title=c.getColumnIndex(DownloadManager.COLUMN_TITLE),status=c.getColumnIndex(DownloadManager.COLUMN_STATUS);
-      while(c.moveToNext()&&ids.size()<100){ids.add(c.getLong(id));names.add(c.getString(title)+(c.getInt(status)==DownloadManager.STATUS_SUCCESSFUL?"":" (downloading)"));}}
+      while(c.moveToNext()&&ids.size()<100){ids.add(c.getLong(id));int state=c.getInt(status);states.add(state);names.add(c.getString(title)+(state==DownloadManager.STATUS_SUCCESSFUL?"":state==DownloadManager.STATUS_FAILED?" (failed)":" (in progress)"));}}
     if(ids.isEmpty()){new AlertDialog.Builder(this).setTitle("Downloads").setMessage("No downloads yet").setPositiveButton("OK",null).show();return;}
     new AlertDialog.Builder(this).setTitle("Downloads").setItems(names.toArray(new String[0]),(d,n)->{
-      Uri uri=dm.getUriForDownloadedFile(ids.get(n));if(uri==null){Toast.makeText(this,"Download not finished",Toast.LENGTH_SHORT).show();return;}
-      String mime=dm.getMimeTypeForDownloadedFile(ids.get(n));String[] choices={"Play in Block Browser","Open in another app"};
+      Uri uri=dm.getUriForDownloadedFile(ids.get(n));if(uri==null){new AlertDialog.Builder(this).setTitle(names.get(n)).setItems(new String[]{"Cancel / remove download"},(dialog,choice)->{dm.remove(ids.get(n));Toast.makeText(this,"Download removed",Toast.LENGTH_SHORT).show();}).setNegativeButton("Back",null).show();return;}
+      String mime=dm.getMimeTypeForDownloadedFile(ids.get(n));String[] choices={"Play in Block Browser","Open in another app","Remove download"};
       new AlertDialog.Builder(this).setTitle(names.get(n)).setItems(choices,(dialog,choice)->{
         if(choice==0){Intent intent=new Intent(this,VideoPlayerActivity.class);intent.setDataAndType(uri,mime==null?"video/*":mime);intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);startActivity(intent);}
+        else if(choice==2){new AlertDialog.Builder(this).setTitle("Remove download?").setPositiveButton("Remove",(dd,nn)->dm.remove(ids.get(n))).setNegativeButton("Cancel",null).show();}
         else{Intent intent=new Intent(Intent.ACTION_VIEW);intent.setDataAndType(uri,mime==null?"*/*":mime);intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);try{startActivity(Intent.createChooser(intent,"Open download with"));}catch(Exception e){Toast.makeText(this,"No compatible app installed",Toast.LENGTH_SHORT).show();}}
       }).show();
     }).show();
