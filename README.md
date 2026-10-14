@@ -2,7 +2,7 @@
 
 **Browse freely. Block distractions. Stay in control.**
 
-Block Browser is a lightweight Android web browser with built-in ad and tracker blocking, simple navigation, fullscreen browsing and convenient video downloads. It combines everyday browsing essentials with privacy-focused controls in a clean, straightforward interface.
+Block Browser is a lightweight Android web browser with built-in ad and tracker blocking, simple navigation, fullscreen browsing and convenient video downloads. It combines everyday browsing essentials with privacy-focused controls in a modern, dark interface with rounded controls and a streamlined toolbar.
 
 ## Highlights
 
