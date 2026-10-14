@@ -11,6 +11,7 @@ import android.widget.Toast;
 /** Separate process and WebView profile. Private tabs never share the regular cookie jar. */
 public class IncognitoActivity extends MainActivity {
   private static boolean profileInitialized=false;
+  @Override android.content.SharedPreferences browserPreferences(){return getSharedPreferences("browser_incognito",MODE_PRIVATE);}
   @Override public void onCreate(Bundle state) {
     if(!profileInitialized && Build.VERSION.SDK_INT>=28) {
       WebView.setDataDirectorySuffix("incognito");
@@ -18,7 +19,6 @@ public class IncognitoActivity extends MainActivity {
     }
     getSharedPreferences("browser_incognito",MODE_PRIVATE).edit().clear().commit();
     super.onCreate(state);
-    prefs=getSharedPreferences("browser_incognito",MODE_PRIVATE);
     setTitle("Block Browser — Private");
   }
   @Override void saveSession(){}
