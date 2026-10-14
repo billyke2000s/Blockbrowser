@@ -54,10 +54,12 @@ public class MainActivity extends Activity {
     exitFs=button("⛶",()->{if(exitFs.getAlpha()<0.1f){showFsControl();}else setFullscreen(false);});exitFs.setContentDescription("Fullscreen control");exitFs.setTextSize(23);exitFs.setPadding(dp(14),dp(8),dp(14),dp(8));
     android.graphics.drawable.GradientDrawable pill=new android.graphics.drawable.GradientDrawable();pill.setColor(0xcc10131a);pill.setCornerRadius(dp(20));exitFs.setBackground(rounded(PANEL,18));exitFs.setAlpha(0.8f);exitFs.setVisibility(View.GONE);
     FrameLayout.LayoutParams exitLp=new FrameLayout.LayoutParams(-2,-2,Gravity.TOP|Gravity.END);exitLp.setMargins(0,dp(24),dp(16),0);outer.addView(exitFs,exitLp);
-    restoreSession();if(immersiveRequested)setFullscreen(true);
+    restoreSession();if(immersiveRequested)setFullscreen(true);handleExternalIntent(getIntent());
   }
   // Android 15+ draws apps behind the status and navigation bars (edge-to-edge). Draw edge-to-edge on every
   // version and pad the UI by the bars' size ourselves, so the toolbar sits below the status bar everywhere.
+  void handleExternalIntent(Intent intent){if(intent==null)return;Uri uri=intent.getData();if(uri==null)return;String scheme=uri.getScheme();if(!"http".equalsIgnoreCase(scheme)&&!"https".equalsIgnoreCase(scheme))return;if(current>=0)tabs.get(current).loadUrl(uri.toString());}
+  @Override protected void onNewIntent(Intent intent){super.onNewIntent(intent);setIntent(intent);handleExternalIntent(intent);}
   void setupEdgeToEdge(){getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
     if(Build.VERSION.SDK_INT>=30)getWindow().setDecorFitsSystemWindows(false);else outer.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN|View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION);
     outer.setOnApplyWindowInsetsListener((v,ins)->{int l,t,r,bars,keyboard;
@@ -145,6 +147,9 @@ public class MainActivity extends Activity {
       // outright (see Chromium components/embedder_support/android/util/input_stream_reader.cc).
       return new WebResourceResponse("text/plain","UTF-8",new FailingStream());}
     @Override public void onReceivedSslError(WebView view,SslErrorHandler sslHandler,android.net.http.SslError error){sslHandler.cancel();runOnUiThread(()->Toast.makeText(MainActivity.this,"Invalid HTTPS certificate — blocked",Toast.LENGTH_LONG).show());}
+    @Override public boolean shouldOverrideUrlLoading(WebView view,WebResourceRequest request){Uri uri=request.getUrl();String scheme=uri.getScheme();if("http".equalsIgnoreCase(scheme)||"https".equalsIgnoreCase(scheme))return false;
+      if(!request.isForMainFrame()||(!"mailto".equalsIgnoreCase(scheme)&&!"tel".equalsIgnoreCase(scheme)))return true;
+      try{startActivity(new Intent(Intent.ACTION_VIEW,uri));}catch(Exception ignored){}return true;}
     @Override public void onPageStarted(WebView view,String url,android.graphics.Bitmap favicon){pageLoading.add(view);}
     @Override public void onPageFinished(WebView view,String url){if(current>=0&&tabs.get(current)==view)address.setText(url);saveVisit(url,view.getTitle());pageLoading.remove(view);Integer y=restoreY.remove(view);if(y==null){android.util.SparseIntArray positions=pagePositions.get(view);WebBackForwardList history=view.copyBackForwardList();if(positions!=null)y=positions.get(history.getCurrentIndex(),0);}if(y!=null&&y>0){final int targetY=y;view.postDelayed(()->view.scrollTo(0,targetY),200);view.postDelayed(()->view.scrollTo(0,targetY),850);}refreshTabs();scheduleSessionSave();}});
     w.setOnLongClickListener(v->showPageContextMenu(w));
