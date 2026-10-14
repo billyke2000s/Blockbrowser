@@ -6,6 +6,8 @@ Block Browser is a lightweight Android web browser with built-in ad and tracker 
 
 ## Highlights
 
+- **Session restoration** — reopen previously visited tabs, restore the active tab and return to saved scroll positions after restarting the browser (some dynamically loaded pages may reposition themselves).
+
 - **Bookmarks and history** — save favourite pages, revisit recently opened websites, and clear saved entries.
 - **Find and share** — search text within a page and share links through Android apps.
 - **Browsing data controls** — clear cookies, cache, web storage and history without deleting bookmarks or downloads.
