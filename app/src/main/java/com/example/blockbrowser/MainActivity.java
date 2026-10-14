@@ -92,6 +92,7 @@ public class MainActivity extends Activity {
         pendingPermission=request;requestPermissions(needed.toArray(new String[0]),5202);
       }).setNegativeButton("Deny",(d,n)->request.deny()).setOnCancelListener(d->request.deny()).show();
     });}
+    @Override public void onPermissionRequestCanceled(PermissionRequest request){if(pendingPermission==request)pendingPermission=null;}
     @Override public void onGeolocationPermissionsShowPrompt(String origin,GeolocationPermissions.Callback callback){runOnUiThread(()->{
       new AlertDialog.Builder(MainActivity.this).setTitle("Location permission").setMessage(origin+" requests your location.").setPositiveButton("Allow",(d,n)->{
         pendingGeo=callback;pendingGeoOrigin=origin;requestPermissions(new String[]{android.Manifest.permission.ACCESS_COARSE_LOCATION},5203);
@@ -263,7 +264,7 @@ public class MainActivity extends Activity {
     
     }}
   @Override public void onBackPressed(){if(customView!=null){hideCustomView();return;}if(fullscreen){setFullscreen(false);return;}if(current>=0&&tabs.get(current).canGoBack())tabs.get(current).goBack();else super.onBackPressed();}
-  @Override protected void onDestroy(){saveSession();sessionHandler.removeCallbacksAndMessages(null);for(WebView w:tabs){if(w.getParent()!=null)((android.view.ViewGroup)w.getParent()).removeView(w);w.destroy();}super.onDestroy();}
+  @Override protected void onDestroy(){if(pendingUpload!=null){pendingUpload.onReceiveValue(null);pendingUpload=null;}if(pendingPermission!=null){pendingPermission.deny();pendingPermission=null;}if(pendingGeo!=null){pendingGeo.invoke(pendingGeoOrigin,false,false);pendingGeo=null;}saveSession();sessionHandler.removeCallbacksAndMessages(null);for(WebView w:tabs){if(w.getParent()!=null)((android.view.ViewGroup)w.getParent()).removeView(w);w.destroy();}super.onDestroy();}
   /** Stream that throws as soon as WebView touches it, so the blocked request ends in a network error. */
   static final class FailingStream extends java.io.InputStream{
     @Override public int available() throws java.io.IOException{throw new java.io.IOException("Blocked by Block Browser");}
