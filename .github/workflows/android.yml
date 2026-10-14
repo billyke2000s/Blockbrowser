@@ -55,7 +55,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          { echo 'Android APK compilation failed. Last 130 lines of the Gradle log:'; echo; echo '\`\`\`'; tail -n 130 build.log; echo '\`\`\`'; } > issue.txt
+          { echo 'Android APK compilation failed. Last 130 lines of the Gradle log:'; echo; echo '\`\`\`'; grep -n -E -C 6 'error:|FAILURE:|What went wrong:|Execution failed|AAPT:|Android resource linking failed' build.log | head -n 140 || true; echo; tail -n 15 build.log; echo '\`\`\`'; } > issue.txt
           gh issue create --title "Android build failed (run #${{ github.run_number }})" --body-file issue.txt || true
 
       - name: Upload APK artifact
