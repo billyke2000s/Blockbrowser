@@ -21,6 +21,7 @@ import java.util.*;
 public class MainActivity extends Activity {
   LinearLayout root, toolbar, tabbar; EditText address; FrameLayout frame, outer; HorizontalScrollView tabScroll; TextView exitFs; Handler handler=new Handler(Looper.getMainLooper()); Runnable fadeTask; long blockedCount=0; android.content.SharedPreferences prefs; java.util.HashMap<String,Boolean> siteAdblock=new java.util.HashMap<>(); float downX,downY;
   boolean fullscreen = false, fullscreenBeforeVideo = false; View customView; WebChromeClient.CustomViewCallback customViewCallback;
+  boolean restoringSession=false; Handler sessionHandler=new Handler(Looper.getMainLooper()); Runnable sessionSave; HashMap<WebView,Integer> restoreY=new HashMap<>();
   ArrayList<WebView> tabs = new ArrayList<>(); int current = -1; volatile boolean blockAds = true;
   static final List<String> BUILTIN_BLOCKED = Arrays.asList("doubleclick.net","googlesyndication.com","googleadservices.com","adnxs.com","adsrvr.org","taboola.com","outbrain.com","scorecardresearch.com","criteo.com","pubmatic.com","rubiconproject.com","openx.net","amazon-adsystem.com","facebook.net");
   // Replaced in one step once assets/blocklist.txt has loaded, so request threads never see a half-built set.
@@ -54,7 +55,7 @@ public class MainActivity extends Activity {
     exitFs=button("⛶",()->{if(exitFs.getAlpha()<0.1f){showFsControl();}else setFullscreen(false);});exitFs.setContentDescription("Fullscreen control");exitFs.setTextSize(23);exitFs.setPadding(dp(14),dp(8),dp(14),dp(8));
     android.graphics.drawable.GradientDrawable pill=new android.graphics.drawable.GradientDrawable();pill.setColor(0xcc10131a);pill.setCornerRadius(dp(20));exitFs.setBackground(rounded(PANEL,18));exitFs.setAlpha(0.8f);exitFs.setVisibility(View.GONE);
     FrameLayout.LayoutParams exitLp=new FrameLayout.LayoutParams(-2,-2,Gravity.TOP|Gravity.END);exitLp.setMargins(0,dp(24),dp(16),0);outer.addView(exitFs,exitLp);
-    newTab("https://www.google.com");
+    restoreSession();
   }
   // Android 15+ draws apps behind the status and navigation bars (edge-to-edge). Draw edge-to-edge on every
   // version and pad the UI by the bars' size ourselves, so the toolbar sits below the status bar everywhere.
@@ -91,12 +92,17 @@ public class MainActivity extends Activity {
       // empty 200 OK. WebView calls available() before sending headers; if it throws, the request fails
       // outright (see Chromium components/embedder_support/android/util/input_stream_reader.cc).
       return new WebResourceResponse("text/plain","UTF-8",new FailingStream());}
-    @Override public void onPageFinished(WebView view,String url){if(current>=0&&tabs.get(current)==view)address.setText(url);saveVisit(url,view.getTitle());refreshTabs();}});
+    @Override public void onPageFinished(WebView view,String url){if(current>=0&&tabs.get(current)==view)address.setText(url);saveVisit(url,view.getTitle());Integer y=restoreY.remove(view);if(y!=null&&y>0){view.postDelayed(()->view.scrollTo(0,y),350);view.postDelayed(()->view.scrollTo(0,y),1200);}refreshTabs();scheduleSessionSave();}});
     w.setDownloadListener((downloadLink,userAgent,disposition,mime,length)->downloadUrl(downloadLink,userAgent,disposition,mime));
     w.setOnTouchListener((v,event)->{if(event.getAction()==MotionEvent.ACTION_DOWN){downX=event.getX();downY=event.getY();}else if(event.getAction()==MotionEvent.ACTION_UP){float dx=event.getX()-downX;if(Math.abs(dx)>dp(110)&&Math.abs(event.getY()-downY)<dp(90)&&downX<dp(35)){if(dx>0&&w.canGoBack())w.goBack();else if(dx<0&&w.canGoForward())w.goForward();return true;}}return false;});
-    w.setWebChromeClient(chromeClient);tabs.add(w);switchTab(tabs.size()-1);w.loadUrl(url);
+    w.setWebChromeClient(chromeClient);w.setOnScrollChangeListener((v,x,y,oldX,oldY)->scheduleSessionSave());tabs.add(w);switchTab(tabs.size()-1);w.loadUrl(url);scheduleSessionSave();
   }
-  void switchTab(int n){if(n<0||n>=tabs.size())return;current=n;frame.removeAllViews();WebView w=tabs.get(n);if(w.getParent()!=null)((android.view.ViewGroup)w.getParent()).removeView(w);frame.addView(w);address.setText(w.getUrl()==null?"":w.getUrl());refreshTabs();}
+  void switchTab(int n){if(n<0||n>=tabs.size())return;current=n;frame.removeAllViews();WebView w=tabs.get(n);if(w.getParent()!=null)((android.view.ViewGroup)w.getParent()).removeView(w);frame.addView(w);address.setText(w.getUrl()==null?"":w.getUrl());refreshTabs();scheduleSessionSave();}
+  void scheduleSessionSave(){if(restoringSession)return;if(sessionSave!=null)sessionHandler.removeCallbacks(sessionSave);sessionSave=this::saveSession;sessionHandler.postDelayed(sessionSave,650);}
+  void saveSession(){if(restoringSession)return;try{org.json.JSONArray a=new org.json.JSONArray();for(WebView w:tabs){String url=w.getUrl();if(url==null||(!url.startsWith("https://")&&!url.startsWith("http://")))continue;org.json.JSONObject item=new org.json.JSONObject();item.put("url",url);item.put("scrollY",w.getScrollY());a.put(item);}prefs.edit().putString("session_tabs",a.toString()).putInt("session_selected",current).apply();}catch(Exception e){android.util.Log.w("BlockBrowser","Could not save session",e);}}
+  void restoreSession(){restoringSession=true;try{org.json.JSONArray a=new org.json.JSONArray(prefs.getString("session_tabs","[]"));for(int i=0;i<a.length()&&i<30;i++){org.json.JSONObject item=a.optJSONObject(i);if(item==null)continue;String url=item.optString("url");if(!url.startsWith("https://")&&!url.startsWith("http://"))continue;newTab(url);restoreY.put(tabs.get(tabs.size()-1),Math.max(0,item.optInt("scrollY",0)));}if(tabs.isEmpty())newTab("https://www.google.com");switchTab(Math.min(Math.max(0,prefs.getInt("session_selected",0)),tabs.size()-1));}catch(Exception e){android.util.Log.w("BlockBrowser","Could not restore session",e);if(tabs.isEmpty())newTab("https://www.google.com");}finally{restoringSession=false;}scheduleSessionSave();}
+  @Override protected void onPause(){saveSession();super.onPause();}
+  @Override protected void onStop(){saveSession();super.onStop();}
   void refreshTabs(){tabbar.removeAllViews();for(int i=0;i<tabs.size();i++){final int j=i;String title=tabs.get(i).getTitle();if(title==null||title.isEmpty())title="Tab "+(i+1);if(title.length()>13)title=title.substring(0,13)+"…";TextView t=button((i==current?"● ":"")+title,()->switchTab(j));t.setTextSize(12);t.setPadding(dp(13),dp(7),dp(13),dp(7));t.setTextColor(i==current?ACCENT:0xffc3cede);LinearLayout.LayoutParams tabLp=new LinearLayout.LayoutParams(-2,dp(38));tabLp.setMargins(0,0,dp(6),0);tabbar.addView(t,tabLp);}tabbar.addView(button("+",()->newTab("https://www.google.com")));}
   static final String[] ENGINE_NAMES={"Google","Bing","DuckDuckGo","Brave Search","Startpage","Ecosia","Yahoo","Qwant","Mojeek","SearXNG"};
   static final String[] ENGINE_URLS={"https://www.google.com/search?q=","https://www.bing.com/search?q=","https://duckduckgo.com/?q=","https://search.brave.com/search?q=","https://www.startpage.com/sp/search?query=","https://www.ecosia.org/search?q=","https://search.yahoo.com/search?p=","https://www.qwant.com/?q=","https://www.mojeek.com/search?q=","https://searx.be/search?q="};
@@ -167,7 +173,7 @@ public class MainActivity extends Activity {
     new AlertDialog.Builder(this).setTitle("Block Browser").setItems(items,(d,which)->{switch(which){
       case 0:adblockMenu();break;case 1:downloads();break;
       case 2:searchEngineMenu();break;case 3:newTab("https://www.google.com");break;
-      case 4:if(tabs.size()>1){WebView w=tabs.remove(current);frame.removeView(w);w.destroy();switchTab(Math.max(0,current-1));}break;
+      case 4:if(tabs.size()>1){WebView w=tabs.remove(current);frame.removeView(w);w.destroy();switchTab(Math.max(0,current-1));saveSession();}break;
       case 5:navigate("https://www.google.com");break;case 6:setFullscreen(true);break;
       case 7:if(current>=0){WebSettings settings=tabs.get(current).getSettings();boolean desktop=!settings.getUserAgentString().contains("Desktop BlockBrowser");settings.setUserAgentString(desktop?"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Desktop BlockBrowser":null);tabs.get(current).reload();}break;
       case 8:if(Build.VERSION.SDK_INT>=29&&current>=0){boolean dark=!prefs.getBoolean("dark",false);prefs.edit().putBoolean("dark",dark).apply();tabs.get(current).getSettings().setForceDark(dark?WebSettings.FORCE_DARK_ON:WebSettings.FORCE_DARK_OFF);tabs.get(current).reload();}else Toast.makeText(this,"Dark websites requires Android 10+",Toast.LENGTH_SHORT).show();break;
@@ -175,7 +181,7 @@ public class MainActivity extends Activity {
       case 10:addBookmark();break;case 11:savedPages("bookmarks","Bookmarks");break;case 12:savedPages("history","History");break;case 13:findOnPage();break;case 14:sharePage();break;case 15:clearBrowsingData();break;
     }}).show();}
   @Override public void onBackPressed(){if(customView!=null){hideCustomView();return;}if(fullscreen){setFullscreen(false);return;}if(current>=0&&tabs.get(current).canGoBack())tabs.get(current).goBack();else super.onBackPressed();}
-  @Override protected void onDestroy(){for(WebView w:tabs){if(w.getParent()!=null)((android.view.ViewGroup)w.getParent()).removeView(w);w.destroy();}super.onDestroy();}
+  @Override protected void onDestroy(){saveSession();sessionHandler.removeCallbacksAndMessages(null);for(WebView w:tabs){if(w.getParent()!=null)((android.view.ViewGroup)w.getParent()).removeView(w);w.destroy();}super.onDestroy();}
   /** Stream that throws as soon as WebView touches it, so the blocked request ends in a network error. */
   static final class FailingStream extends java.io.InputStream{
     @Override public int available() throws java.io.IOException{throw new java.io.IOException("Blocked by Block Browser");}
