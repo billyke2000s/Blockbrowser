@@ -11,7 +11,7 @@ Block Browser is a lightweight Android web browser with built-in ad and tracker 
 - **Video downloads** — tap the **↓** button on the browser toolbar to find direct video files on the current page and download them.
 - **Download library** — open **Downloads** from the ⋮ menu to see files saved through the browser. Play compatible videos inside Block Browser or choose another installed app.
 - **Fullscreen browsing** — hide browser and system bars for a more immersive experience. The fullscreen control fades away after a few seconds; tap its position to reveal it again.
-- **Multiple tabs** — switch between pages without losing your place.
+- **Search engine choice** — select Google, Bing, DuckDuckGo, Brave Search, Startpage, Ecosia, Yahoo, Qwant, Mojeek or SearXNG from **⋮ → Search engine**. The selection is saved, and the chooser displays search-engine favicons when available.\n- **Multiple tabs** — switch between pages without losing your place.
 - **Quick navigation** — address-bar search, back, forward, refresh, home and edge-swipe navigation.
 - **Desktop mode and dark websites** — optional viewing controls, with dark rendering support depending on Android version and website.
 - **Privacy dashboard** — view session-level blocking statistics.
@@ -30,7 +30,7 @@ Block Browser is a lightweight Android web browser with built-in ad and tracker 
 
 **Find downloaded files:** Open the **⋮ menu → Downloads**. Select a completed download to play it in Block Browser or open it with another compatible app.
 
-**Control ad blocking:** Open **⋮ → Adblock** to change the blocking setting and view statistics.
+**Choose your search engine:** Open **⋮ → Search engine**, select a provider and search directly from the address bar. Google is the default.\n\n**Control ad blocking:** Open **⋮ → Adblock** to change the blocking setting and view statistics.
 
 **Go fullscreen:** Open **⋮ → Full screen**. The floating fullscreen control fades after three seconds. Tap its original location to show it again, then tap it to exit; Android's Back action also exits fullscreen.
 
