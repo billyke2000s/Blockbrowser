@@ -51,7 +51,7 @@ public class MainActivity extends Activity {
     moreButton=button("⋮",this::menu);moreButton.setContentDescription("Browser menu");moreButton.setBackgroundColor(Color.TRANSPARENT);toolbar.addView(moreButton);
     tabbar=new LinearLayout(this);tabScroll=new HorizontalScrollView(this);tabScroll.addView(tabbar);tabScroll.setVisibility(View.GONE);
     frame=new FrameLayout(this);root.addView(frame,new LinearLayout.LayoutParams(-1,0,1));
-    exitFs=button("⛶",()->{if(exitFs.getAlpha()<0.1f){showFsControl();}else setFullscreen(false);});exitFs.setContentDescription("Fullscreen control");exitFs.setTextSize(23);exitFs.setPadding(dp(14),dp(8),dp(14),dp(8));
+    exitFs=button("⛶",()->{if(exitFs.getAlpha()<0.35f){showFsControl();}else setFullscreen(false);});exitFs.setContentDescription("Fullscreen control");exitFs.setTextSize(23);exitFs.setPadding(dp(14),dp(8),dp(14),dp(8));
     android.graphics.drawable.GradientDrawable pill=new android.graphics.drawable.GradientDrawable();pill.setColor(0xcc10131a);pill.setCornerRadius(dp(20));exitFs.setBackground(rounded(PANEL,18));exitFs.setAlpha(0.8f);exitFs.setVisibility(View.GONE);
     FrameLayout.LayoutParams exitLp=new FrameLayout.LayoutParams(-2,-2,Gravity.TOP|Gravity.END);exitLp.setMargins(0,dp(24),dp(16),0);outer.addView(exitFs,exitLp);
     restoreSession();if(immersiveRequested)setFullscreen(true);handleExternalIntent(getIntent());
@@ -72,7 +72,7 @@ public class MainActivity extends Activity {
     if(on){InputMethodManager imm=(InputMethodManager)getSystemService(INPUT_METHOD_SERVICE);imm.hideSoftInputFromWindow(address.getWindowToken(),0);address.clearFocus();}
     if(Build.VERSION.SDK_INT>=28){WindowManager.LayoutParams lp=getWindow().getAttributes();lp.layoutInDisplayCutoutMode=on?WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES:WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_DEFAULT;getWindow().setAttributes(lp);}
     applySystemBars();outer.requestApplyInsets();}
-  void showFsControl(){handler.removeCallbacksAndMessages(null);exitFs.animate().cancel();exitFs.setAlpha(0.85f);fadeTask=()->exitFs.animate().alpha(0f).setDuration(350).start();handler.postDelayed(fadeTask,3000);}
+  void showFsControl(){handler.removeCallbacksAndMessages(null);exitFs.animate().cancel();exitFs.setAlpha(0.85f);fadeTask=()->exitFs.animate().alpha(0.24f).setDuration(350).start();handler.postDelayed(fadeTask,3000);}
   void applySystemBars(){if(Build.VERSION.SDK_INT>=30){WindowInsetsController c=getWindow().getInsetsController();if(c==null)return;
       if(fullscreen){c.setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);c.hide(WindowInsets.Type.systemBars());}else c.show(WindowInsets.Type.systemBars());}
     else{int f=View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN|View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION;if(fullscreen)f|=View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY|View.SYSTEM_UI_FLAG_FULLSCREEN|View.SYSTEM_UI_FLAG_HIDE_NAVIGATION;outer.setSystemUiVisibility(f);}}
