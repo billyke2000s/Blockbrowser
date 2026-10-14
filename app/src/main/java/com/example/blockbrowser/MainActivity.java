@@ -123,13 +123,13 @@ public class MainActivity extends Activity {
     if(url==null||url.isEmpty())return false;
     final String target=url;
     ArrayList<String> actions=new ArrayList<>();
-    if(link){actions.add("Open link");actions.add("Open link in new tab");actions.add("Copy link address");actions.add("Share link");}
+    if(link){actions.add("Open link");actions.add("Open link in new tab");actions.add("Open in background tab");actions.add("Copy link address");actions.add("Share link");}
     if(image){actions.add("Open image");actions.add("Save image");actions.add("Copy image address");}
     new AlertDialog.Builder(this).setTitle(image?"Image options":"Link options").setItems(actions.toArray(new String[0]),(dialog,choice)->{
       String action=actions.get(choice);
       switch(action){
         case "Open link":w.loadUrl(target);break;
-        case "Open link in new tab":newTab(target);break;
+        case "Open link in new tab":newTab(target);break;case "Open in background tab":newTab(target,true);break;
         case "Copy link address":copyText("Link",target);break;
         case "Share link":shareLink(target);break;
         case "Open image":newTab(target);break;
@@ -139,7 +139,8 @@ public class MainActivity extends Activity {
     }).show();
     return true;
   }
-  void newTab(String url){WebView w=new WebView(this);w.setBackgroundColor(Color.WHITE);WebSettings s=w.getSettings();s.setJavaScriptEnabled(true);s.setDomStorageEnabled(true);s.setGeolocationEnabled(true);CookieManager.getInstance().setAcceptThirdPartyCookies(w,prefs.getBoolean("third_party_cookies",false));s.setTextZoom(prefs.getInt("text_zoom",100));s.setSupportMultipleWindows(false);s.setBuiltInZoomControls(true);s.setDisplayZoomControls(false);s.setMediaPlaybackRequiresUserGesture(false);if(Build.VERSION.SDK_INT>=29)s.setForceDark(prefs.getBoolean("dark",false)?WebSettings.FORCE_DARK_ON:WebSettings.FORCE_DARK_OFF);
+  void newTab(String url){newTab(url,false);}
+  void newTab(String url,boolean background){int previous=current;WebView w=new WebView(this);w.setBackgroundColor(Color.WHITE);WebSettings s=w.getSettings();s.setJavaScriptEnabled(true);s.setDomStorageEnabled(true);s.setGeolocationEnabled(true);CookieManager.getInstance().setAcceptThirdPartyCookies(w,prefs.getBoolean("third_party_cookies",false));s.setTextZoom(prefs.getInt("text_zoom",100));s.setSupportMultipleWindows(false);s.setBuiltInZoomControls(true);s.setDisplayZoomControls(false);s.setMediaPlaybackRequiresUserGesture(false);if(Build.VERSION.SDK_INT>=29)s.setForceDark(prefs.getBoolean("dark",false)?WebSettings.FORCE_DARK_ON:WebSettings.FORCE_DARK_OFF);
     w.setWebViewClient(new WebViewClient(){@Override public WebResourceResponse shouldInterceptRequest(WebView view,WebResourceRequest req){if(!isBlocked(req.getUrl().toString()))return null;
       if(req.isForMainFrame()){String html="<html><body style=\"font-family:sans-serif;padding:24px\"><h3>Blocked by Block Browser</h3><p>"+android.text.TextUtils.htmlEncode(String.valueOf(req.getUrl().getHost()))+" is on the ad/tracker blocklist.</p><p>Turn adblock off in the \u22ee menu to open it anyway.</p></body></html>";
         return new WebResourceResponse("text/html","UTF-8",new java.io.ByteArrayInputStream(html.getBytes(java.nio.charset.StandardCharsets.UTF_8)));}
@@ -156,7 +157,7 @@ public class MainActivity extends Activity {
     w.setOnLongClickListener(v->showPageContextMenu(w));
     w.setDownloadListener((downloadLink,userAgent,disposition,mime,length)->downloadUrl(downloadLink,userAgent,disposition,mime));
     w.setOnTouchListener((v,event)->{if(event.getAction()==MotionEvent.ACTION_DOWN){downX=event.getX();downY=event.getY();}else if(event.getAction()==MotionEvent.ACTION_UP){float dx=event.getX()-downX;if(Math.abs(dx)>dp(110)&&Math.abs(event.getY()-downY)<dp(90)&&downX<dp(35)){if(dx>0&&w.canGoBack())w.goBack();else if(dx<0&&w.canGoForward())w.goForward();return true;}}return false;});
-    w.setWebChromeClient(chromeClient);pagePositions.put(w,new android.util.SparseIntArray());w.setOnScrollChangeListener((v,x,y,oldX,oldY)->{if(!pageLoading.contains(w)){int index=w.copyBackForwardList().getCurrentIndex();if(index>=0)pagePositions.get(w).put(index,y);}scheduleSessionSave();});tabs.add(w);switchTab(tabs.size()-1);w.loadUrl(url);scheduleSessionSave();
+    w.setWebChromeClient(chromeClient);pagePositions.put(w,new android.util.SparseIntArray());w.setOnScrollChangeListener((v,x,y,oldX,oldY)->{if(!pageLoading.contains(w)){int index=w.copyBackForwardList().getCurrentIndex();if(index>=0)pagePositions.get(w).put(index,y);}scheduleSessionSave();});tabs.add(w);if(!background||previous<0)switchTab(tabs.size()-1);else refreshTabs();w.loadUrl(url);scheduleSessionSave();
   }
   void switchTab(int n){if(n<0||n>=tabs.size())return;current=n;frame.removeAllViews();WebView w=tabs.get(n);if(w.getParent()!=null)((android.view.ViewGroup)w.getParent()).removeView(w);frame.addView(w);address.setText(w.getUrl()==null?"":w.getUrl());refreshTabs();scheduleSessionSave();}
   void scheduleSessionSave(){if(restoringSession)return;if(sessionSave!=null)sessionHandler.removeCallbacks(sessionSave);sessionSave=this::saveSession;sessionHandler.postDelayed(sessionSave,650);}
