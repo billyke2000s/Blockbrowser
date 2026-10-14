@@ -258,6 +258,12 @@ public class MainActivity extends Activity {
   void menu(){
     String[] labels={"Site information","Search history","Search bookmarks","Print / Save PDF","Text size","Homepage settings","Third-party cookies","Adblock","Download video","Privacy dashboard","Dark websites","Downloads","Search engine","Add bookmark","Bookmarks","History","Find in page","Share page","Clear browsing data","Back","Forward","Reload","New tab","Close tab","Home",immersiveRequested?"Exit full screen":"Full screen","Desktop site"};
     String[] icons={"ⓘ","⌕","⌕","▤","A","⌂","◉","◈","↓","◇","◐","⇩","⌕","☆","★","◷","⌕","↗","⌫","‹","›","⟳","+","×","⌂","⛶","▣"};
+    // Keep fullscreen visible without scrolling; the menu actions still retain their original IDs.
+    int[] menuIds=new int[labels.length];for(int i=0;i<menuIds.length;i++)menuIds[i]=i;
+    int fullscreenIndex=labels.length-2, insertAt=4;
+    String fullscreenLabel=labels[fullscreenIndex],fullscreenIcon=icons[fullscreenIndex];int fullscreenId=menuIds[fullscreenIndex];
+    for(int i=fullscreenIndex;i>insertAt;i--){labels[i]=labels[i-1];icons[i]=icons[i-1];menuIds[i]=menuIds[i-1];}
+    labels[insertAt]=fullscreenLabel;icons[insertAt]=fullscreenIcon;menuIds[insertAt]=fullscreenId;
     LinearLayout content=new LinearLayout(this);content.setOrientation(LinearLayout.VERTICAL);content.setPadding(dp(5),dp(5),dp(5),dp(5));content.setBackground(rounded(PANEL,16));
     ScrollView scroll=new ScrollView(this);scroll.setFillViewport(false);scroll.setVerticalScrollBarEnabled(false);scroll.addView(content);
     PopupWindow popup=new PopupWindow(scroll,dp(264),Math.min(dp(580),getResources().getDisplayMetrics().heightPixels-dp(100)),true);
@@ -265,7 +271,7 @@ public class MainActivity extends Activity {
     for(int i=0;i<labels.length;i++){final int choice=i;LinearLayout line=new LinearLayout(this);line.setGravity(Gravity.CENTER_VERTICAL);line.setPadding(dp(14),0,dp(8),0);
       TextView symbol=new TextView(this);symbol.setText(icons[i]);symbol.setTextColor(ACCENT);symbol.setTextSize(21);symbol.setGravity(Gravity.CENTER_VERTICAL);line.addView(symbol,new LinearLayout.LayoutParams(dp(38),dp(47)));
       TextView label=new TextView(this);label.setText(labels[i]);label.setTextColor(0xffeaf1fc);label.setTextSize(15);label.setGravity(Gravity.CENTER_VERTICAL);line.addView(label,new LinearLayout.LayoutParams(-1,dp(47)));
-      line.setOnClickListener(v->{popup.dismiss();handleMenuChoice(choice);});content.addView(line);
+      line.setOnClickListener(v->{popup.dismiss();handleMenuChoice(menuIds[choice]);});content.addView(line);
       if(i==3||i==11){View separator=new View(this);separator.setBackgroundColor(0xff354359);LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(1));lp.setMargins(dp(12),dp(5),dp(12),dp(5));content.addView(separator,lp);}
     }
     popup.showAtLocation(outer,Gravity.TOP|Gravity.END,dp(8),Math.max(dp(8),root.getPaddingTop()+dp(56)));
