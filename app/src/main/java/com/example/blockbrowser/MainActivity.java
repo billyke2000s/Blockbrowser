@@ -47,6 +47,9 @@ public class MainActivity extends Activity {
     TextView home=button("⌂",()->navigate(homeUrl()));home.setContentDescription("Home");home.setBackgroundColor(Color.TRANSPARENT);home.setTextSize(29);toolbar.addView(home);
     address=new AutoCompleteTextView(this);address.setContentDescription("Address bar");address.setSingleLine(true);address.setTextColor(0xfff4f7ff);address.setHintTextColor(MUTED);address.setBackground(rounded(PANEL,28));address.setPadding(dp(16),0,dp(12),0);address.setHint("Search or enter URL");address.setTextSize(15);address.setSelectAllOnFocus(true);LinearLayout.LayoutParams addressLp=new LinearLayout.LayoutParams(0,dp(48),1);addressLp.setMargins(dp(4),0,dp(4),0);toolbar.addView(address,addressLp);
     address.setOnEditorActionListener((v,id,event)->{navigate(address.getText().toString());return true;});
+    ((AutoCompleteTextView)address).setThreshold(1);
+    ((AutoCompleteTextView)address).setOnItemClickListener((parent,view,index,id)->navigate(String.valueOf(parent.getItemAtPosition(index))));
+    address.addTextChangedListener(new android.text.TextWatcher(){public void beforeTextChanged(CharSequence s,int start,int count,int after){}public void onTextChanged(CharSequence s,int start,int before,int count){updateAddressSuggestions(s.toString().toLowerCase(Locale.ROOT));}public void afterTextChanged(android.text.Editable e){} });
     tabCount=button("1",this::showTabSwitcher);tabCount.setContentDescription("Switch tabs");tabCount.setTextSize(17);tabCount.setBackgroundColor(Color.TRANSPARENT);toolbar.addView(tabCount);
     moreButton=button("⋮",this::menu);moreButton.setContentDescription("Browser menu");moreButton.setBackgroundColor(Color.TRANSPARENT);toolbar.addView(moreButton);
     tabbar=new LinearLayout(this);tabScroll=new HorizontalScrollView(this);tabScroll.addView(tabbar);tabScroll.setVisibility(View.GONE);
