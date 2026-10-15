@@ -1965,12 +1965,26 @@ public class MainActivity extends Activity {
   // =====================================================================================================
 
   void searchEngineMenu(Runnable after) {
-    new AlertDialog.Builder(this).setTitle("Search engine").setSingleChoiceItems(ENGINE_NAMES, engine(), (d, i) -> {
-      prefs.edit().putInt("search_engine", i).apply();
-      d.dismiss();
-      toast("Search engine: " + ENGINE_NAMES[i]);
-      if (after != null) after.run();
-    }).setNegativeButton("Cancel", null).show();
+    ListPanel panel = new ListPanel(this, "Choose search engine");
+    java.util.List<ListPanel.Item> choices = new java.util.ArrayList<>();
+    String[] details = {
+      "Google Search", "Microsoft search", "Privacy-focused search", "Independent private search",
+      "Private search results", "Search that plants trees", "Yahoo search", "Privacy-focused search",
+      "Independent search index", "Community-hosted metasearch"
+    };
+    String[] glyphs = {"G", "B", "D", "♜", "S", "E", "Y", "Q", "M", "S"};
+    for (int i = 0; i < ENGINE_NAMES.length; i++) {
+      final int selected = i;
+      ListPanel.Item item = new ListPanel.Item(glyphs[i], ENGINE_NAMES[i], details[i], () -> {
+        prefs.edit().putInt("search_engine", selected).apply();
+        panel.dismiss();
+        if (after != null) after.run();
+      });
+      if (i == engine()) item.trailing = "✓ Selected";
+      choices.add(item);
+    }
+    panel.setItems(choices);
+    panel.show();
   }
 
   void textZoomMenu(Runnable after) {
