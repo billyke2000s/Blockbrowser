@@ -96,7 +96,8 @@ final class ListPanel {
 
     FrameLayout body = new FrameLayout(activity);
     list = new ListView(activity);
-    list.setDivider(null);
+    list.setDivider(new android.graphics.drawable.ColorDrawable(SURFACE));
+    list.setDividerHeight(dp(8));
     list.setPadding(dp(10), dp(4), dp(10), dp(16));
     list.setClipToPadding(false);
     list.setSelector(android.R.color.transparent);
@@ -244,10 +245,6 @@ final class ListPanel {
       trailing.setPadding(dp(10), 0, 0, 0);
       addView(trailing);
       progress.setMax(100);
-    }
-
-    @Override protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-      super.onMeasure(widthMeasureSpec, heightMeasureSpec);
     }
 
     void bind(Item it) {
