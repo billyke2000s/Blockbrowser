@@ -1389,10 +1389,13 @@ public class MainActivity extends Activity {
    * position sticks. It stops as soon as the user scrolls or the tab shows something else.
    */
   void restoreScroll(Tab tab, WebView view, int targetY, int attempt) {
-    if (tab.web != view || attempt > 24) return;
+    if (tab.web != view) return;
     int y = view.getScrollY();
-    if (Math.abs(y - targetY) <= 4) return;                 // done
-    if (attempt > 0 && y > 4 && y != tab.restoreAttemptY) return; // the user has scrolled since our last try
+    boolean done = Math.abs(y - targetY) <= 4, userScrolled = attempt > 0 && y > 4 && y != tab.restoreAttemptY;
+    if (done || userScrolled || attempt > 24) {
+      if (BuildConfig.TEST_LOGS) Log.i("BlockBrowserTest", "scroll restore target=" + targetY + " now=" + y + " attempts=" + attempt + (done ? " done" : userScrolled ? " user-scrolled" : " gave-up") + " contentHeight=" + view.getContentHeight());
+      return;
+    }
     view.scrollTo(0, targetY);
     if (view.getScrollY() < targetY - 4) {
       // Older WebView versions can ignore scrollTo right after loading; ask the page itself (CSS pixels).
@@ -1671,6 +1674,7 @@ public class MainActivity extends Activity {
     waiting = new ArrayList<>();
     waiting.add(callback);
     pendingGeo.put(origin, waiting);
+    if (BuildConfig.TEST_LOGS) Log.i("BlockBrowserTest", "location prompt shown for '" + origin + "'");
     FrameLayout box = new FrameLayout(this);
     CheckBox remember = rememberBox(box);
     new AlertDialog.Builder(this)
