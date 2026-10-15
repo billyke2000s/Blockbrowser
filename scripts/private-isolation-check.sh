@@ -147,11 +147,18 @@ check private private-after-force-stop ""
 
 # --- 5. Nothing private in normal history or saved session ---------------------------
 adb shell am start -W -n "$PKG/.MainActivity" >/dev/null; sleep 2
-adb shell input keyevent KEYCODE_HOME; sleep 2   # onStop saves the normal session
+adb shell input keyevent KEYCODE_HOME; sleep 3   # onStop saves the normal session; history is written in the background
 adb shell run-as "$PKG" cat /data/data/$PKG/shared_prefs/browser.xml > "$OUT/browser-prefs.xml" 2>/dev/null
+adb exec-out run-as "$PKG" cat databases/history.db > "$OUT/history.db" 2>/dev/null
+adb exec-out run-as "$PKG" cat databases/history.db-wal > "$OUT/history.db-wal" 2>/dev/null
+HISTORY=$(python3 -c "import sqlite3;print('\n'.join(r[0] for r in sqlite3.connect('$OUT/history.db').execute('select url from history')))" 2>"$OUT/history-error.txt")
+echo "$HISTORY" > "$OUT/history-urls.txt"
 if [ ! -s "$OUT/browser-prefs.xml" ]; then fail "Could not read normal browser preferences"
-elif grep -q "step=private\|who=private" "$OUT/browser-prefs.xml"; then fail "Private URLs found in normal history/session: $(grep -o '[^;]*step=private[^&;]*' "$OUT/browser-prefs.xml" | head -3 | tr '\n' ' ')"
-elif grep -q "step=normal" "$OUT/browser-prefs.xml"; then pass "Normal history contains normal pages and no private ones"
+elif grep -q "step=private\|who=private" "$OUT/browser-prefs.xml"; then fail "Private URLs found in the normal saved session: $(grep -o '[^;]*step=private[^&;]*' "$OUT/browser-prefs.xml" | head -3 | tr '\n' ' ')"
+else pass "Normal saved session contains no private pages"; fi
+if [ -z "$HISTORY" ]; then fail "Could not read normal history ($(head -c 200 "$OUT/history-error.txt"))"
+elif echo "$HISTORY" | grep -q "step=private\|who=private"; then fail "Private URLs found in normal history: $(echo "$HISTORY" | grep "private" | head -3 | tr '\n' ' ')"
+elif echo "$HISTORY" | grep -q "step=normal"; then pass "Normal history contains normal pages and no private ones"
 else fail "Normal history did not record normal pages (test cannot prove private ones are absent)"; fi
 
 { echo; echo "<details><summary>App folders after force-stop, then after the main process started</summary>"; echo; echo '```'

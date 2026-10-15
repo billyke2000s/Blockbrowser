@@ -9,7 +9,14 @@ normal and private browsing share cookies, localStorage or IndexedDB.
   /check?step=STEP  records the Cookie header the browser sent, then reports what localStorage and
                     IndexedDB contain as /report?step=STEP&ls=...&idb=...
 
-Results are written as JSON to the file given as the second argument: {"steps": {...}, "stored": [...]}.
+Used by scripts/browser-check.sh as well:
+
+  /page?n=N         a long page titled "Page N"; records each load (hits) and, after a moment, its scroll position
+  /download?name=F  a file download that records whether the browser's cookie was sent
+  /geo?step=STEP    asks for the location and reports "ok" or the error code (1 = permission denied)
+
+Results are written as JSON to the file given as the second argument:
+{"steps": {...}, "stored": [...], "hits": {...}, "scroll": {...}, "downloads": [...]}.
 Usage: isolation-server.py PORT RESULTS_JSON
 """
 import json
@@ -21,7 +28,7 @@ from urllib.parse import parse_qs, urlparse
 PORT = int(sys.argv[1])
 RESULTS = sys.argv[2]
 lock = threading.Lock()
-state = {"steps": {}, "stored": []}
+state = {"steps": {}, "stored": [], "hits": {}, "scroll": {}, "downloads": []}
 
 
 def save():
@@ -88,6 +95,39 @@ class Handler(BaseHTTPRequestHandler):
                 state["stored"].append(q.get("who", ""))
                 save()
             self.send(b"ok")
+        elif url.path == "/page":
+            n = q.get("n", "0")
+            with lock:
+                state["hits"][n] = state["hits"].get(n, 0) + 1
+                save()
+            filler = "".join("<p>Paragraph %d of page %s.</p>" % (i, n) for i in range(200))
+            script = ("setTimeout(function(){fetch('/scroll?n='+%s+'&y='+Math.round(window.scrollY))},3000);" % json.dumps(n))
+            body = ("<!doctype html><html><head><meta name=viewport content='width=device-width'><title>Page %s</title></head>"
+                    "<body><h1>Page %s</h1>%s<script>%s</script></body></html>" % (n, n, filler, script)).encode()
+            self.send(body)
+        elif url.path == "/scroll":
+            with lock:
+                state["scroll"][q.get("n", "")] = int(q.get("y", "0") or 0)
+                save()
+            self.send(b"ok")
+        elif url.path == "/download":
+            name = q.get("name", "file.txt").replace('"', "")
+            with lock:
+                state["downloads"].append({"name": name, "cookie": cookies})
+                save()
+            body = ("Block Browser download test. Cookie: %s\n" % cookies).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain")
+            self.send_header("Content-Disposition", 'attachment; filename="%s"' % name)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+        elif url.path == "/geo":
+            step = q.get("step", "")
+            script = ("var done=false;function rep(v){if(done)return;done=true;fetch('/report?step='+encodeURIComponent(%s)+'&ls='+v+'&idb=geo')}"
+                      "navigator.geolocation.getCurrentPosition(function(){rep('ok')},function(e){rep('err'+e.code)},{timeout:8000});"
+                      "setTimeout(function(){rep('nothing')},20000);" % json.dumps(step))
+            self.send(page("Location " + step, script))
         else:
             self.send(page("Block Browser test page", ""))
 

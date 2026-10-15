@@ -16,7 +16,6 @@ import android.view.WindowManager;
 import android.view.inputmethod.EditorInfo;
 import android.webkit.CookieManager;
 import android.webkit.WebStorage;
-import android.webkit.WebView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -27,7 +26,8 @@ import java.util.Map;
  * Private window. Runs in the ":incognito" process with its own WebView data directory (set up by
  * {@link BrowserApplication} before any WebView call), so cookies, storage, cache and service workers are never
  * shared with normal browsing. Nothing about the session is written to normal browser data: no history, session,
- * recently closed tabs or settings changes. Normal bookmarks and history can be read (for suggestions) but not changed.
+ * recently closed tabs, site icons, permission decisions or settings changes. Normal bookmarks and history can be
+ * read (for suggestions) but not changed.
  *
  * When the last private window closes, the profile is cleared and the private process ends. Anything left on disk
  * after a crash or force-stop is deleted by {@link PrivateProfile} before it can be used again.
@@ -35,7 +35,7 @@ import java.util.Map;
 public class IncognitoActivity extends MainActivity {
   static final int PRIVATE_SURFACE = 0xff251b38, PRIVATE_BADGE = 0xff4a3470;
   /** Settings a private window starts with, copied from normal browsing. Changes made in private are not kept. */
-  static final String[] COPIED_SETTINGS = {"adblock", "search_engine", "homepage", "third_party_cookies", "text_zoom", "dark", "fullscreen"};
+  static final String[] COPIED_SETTINGS = {"adblock", "search_engine", "homepage", "third_party_cookies", "text_zoom", "dark", "fullscreen", "strip_tracking"};
   private static int openWindows = 0;
   private boolean browserStarted = false;
 
@@ -52,8 +52,10 @@ public class IncognitoActivity extends MainActivity {
     super.onCreate(state);
     browserStarted = true;
     openWindows++;
-    if (Build.VERSION.SDK_INT >= 28) setTaskDescription(new android.app.ActivityManager.TaskDescription("Block Browser — Private"));
+    setTaskDescription(new android.app.ActivityManager.TaskDescription("Block Browser — Private"));
   }
+
+  @Override boolean isPrivate() { return true; }
 
   @Override SharedPreferences browserPreferences() {
     SharedPreferences privatePrefs = getSharedPreferences(PrivateProfile.PREFERENCES, MODE_PRIVATE);
@@ -71,10 +73,21 @@ public class IncognitoActivity extends MainActivity {
     return privatePrefs;
   }
 
-  @Override SharedPreferences library() {
-    return new ReadOnlyPreferences(getSharedPreferences("browser", MODE_PRIVATE),
-        () -> runOnUiThread(() -> Toast.makeText(this, "Bookmarks and history can't be changed in a private window", Toast.LENGTH_LONG).show()));
+  void blockedWriteMessage() {
+    runOnUiThread(() -> Toast.makeText(this, "Bookmarks and history can't be changed in a private window", Toast.LENGTH_LONG).show());
   }
+
+  @Override SharedPreferences library() {
+    return new ReadOnlyPreferences(getSharedPreferences("browser", MODE_PRIVATE), this::blockedWriteMessage);
+  }
+
+  @Override HistoryStore history() { return HistoryStore.get(this, true); }
+
+  /** Icons seen in private stay in memory only; icons saved by normal browsing can still be shown. */
+  @Override FaviconCache favicons() { return FaviconCache.get(this, false); }
+
+  /** Permission decisions last until the window closes; normal "Block" decisions and ad-block exceptions carry over. */
+  @Override SiteSettings createSiteSettings() { return SiteSettings.forPrivate(getSharedPreferences("browser", MODE_PRIVATE)); }
 
   @Override int autofillMode() {
     return Build.VERSION.SDK_INT >= 26 ? View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS : 0;
@@ -84,6 +97,7 @@ public class IncognitoActivity extends MainActivity {
     outer.setBackgroundColor(PRIVATE_SURFACE);
     root.setBackgroundColor(PRIVATE_SURFACE);
     toolbar.setBackgroundColor(PRIVATE_SURFACE);
+    addressBox.setBackground(rounded(PRIVATE_BADGE, 28));
     getWindow().setStatusBarColor(PRIVATE_SURFACE);
     getWindow().setNavigationBarColor(PRIVATE_SURFACE);
     TextView badge = new TextView(this);
@@ -94,7 +108,7 @@ public class IncognitoActivity extends MainActivity {
     badge.setTypeface(null, Typeface.BOLD);
     badge.setGravity(Gravity.CENTER);
     badge.setPadding(dp(10), 0, dp(10), 0);
-    badge.setBackground(rounded(PRIVATE_BADGE, 14));
+    badge.setBackground(rounded(0xff6b4aa0, 14));
     badge.setOnClickListener(v -> Toast.makeText(this,
         "Private: history, cookies and site data from this window are deleted when it closes. Downloads are kept.",
         Toast.LENGTH_LONG).show());
@@ -103,8 +117,9 @@ public class IncognitoActivity extends MainActivity {
     toolbar.addView(badge, 1, lp);
     address.setHint("Private search or URL");
     // Ask the keyboard not to learn from what is typed here (the keyboard decides whether to honour it).
-    address.setImeOptions(address.getImeOptions() | EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING);
+    address.setImeOptions(EditorInfo.IME_ACTION_GO | EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING);
     address.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
+    findInput.setImeOptions(EditorInfo.IME_ACTION_SEARCH | EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING);
   }
 
   @Override void openPrivateWindow() { newTab(homeUrl()); }
@@ -113,15 +128,26 @@ public class IncognitoActivity extends MainActivity {
   @Override void saveSession() {}
   @Override void scheduleSessionSave() {}
   @Override void saveVisit(String url, String title) {}
-  @Override void restoreSession() { restoringSession = true; newTab(homeUrl()); restoringSession = false; }
-  @Override void rememberClosedTab(String url) {}
+  @Override void rememberClosedTab(String url, String title) {}
+  @Override void forgetClosedTab(String url) {}
+
+  @Override void restoreSession() {
+    restoringSession = true;
+    tabs.add(new Tab(homeUrl()));
+    selectTab(0);
+    restoringSession = false;
+    refreshTabCount();
+  }
+
+  /** Back with nothing left to go back to closes the private window (and clears it). */
+  @Override void onBackAtRoot() { finish(); }
 
   @Override protected void onDestroy() {
     if (!browserStarted) { super.onDestroy(); return; }
     // Only clear when the user actually closes the window; a system-initiated destroy keeps the session.
     boolean last = openWindows <= 1 && isFinishing();
     if (last) {
-      for (WebView web : tabs) { web.clearHistory(); web.clearCache(true); web.clearFormData(); }
+      for (Tab t : tabs) if (t.web != null) { t.web.clearHistory(); t.web.clearCache(true); t.web.clearFormData(); }
       CookieManager.getInstance().removeAllCookies(null);
       CookieManager.getInstance().flush();
       WebStorage.getInstance().deleteAllData();
@@ -131,7 +157,7 @@ public class IncognitoActivity extends MainActivity {
     if (last) {
       getSharedPreferences(PrivateProfile.PREFERENCES, MODE_PRIVATE).edit().clear().commit();
       // End the process so nothing private stays in memory. Files WebView still holds are deleted when the next
-      // private or main process starts (see PrivateProfile).
+      // private or main process starts, or when a normal window comes back (see PrivateProfile).
       new Handler(Looper.getMainLooper()).postDelayed(() -> {
         if (openWindows == 0) {
           Log.i(PrivateProfile.LOG_TAG, "last private window closed; ending private process");
