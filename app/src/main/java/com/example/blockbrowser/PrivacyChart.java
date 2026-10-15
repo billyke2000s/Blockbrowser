@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 /** Local, session-only privacy statistics. Never estimates categories it cannot measure. */
 final class PrivacyChart {
@@ -27,9 +28,10 @@ final class PrivacyChart {
     root.setBackgroundColor(ListPanel.SURFACE);
     TextView heading = text(a, "Blocking statistics", 24, ListPanel.TEXT);
     root.addView(heading);
-    TextView note = text(a, "This session · stored only in memory", 13, ListPanel.MUTED);
+    TextView note = text(a, a.blockingStats == null ? "Private session · not saved" : "On-device statistics · no URLs stored", 13, ListPanel.MUTED);
     root.addView(note);
-    long total = a.blockedCount.get();
+    if (a.blockingStats != null) a.blockingStats.flush();
+    long total = a.blockingStats == null ? a.blockedCount.get() : a.blockingStats.total();
     TextView count = text(a, String.format(Locale.ROOT, "%,d requests blocked", total), 21, ListPanel.ACCENT);
     count.setPadding(0, a.dp(24), 0, a.dp(12));
     root.addView(count);
@@ -75,7 +77,32 @@ final class PrivacyChart {
         root.addView(item);
       }
     }
-    TextView explanation=text(a,"The chart shows current-page counters, which reset on navigation. The session total also includes pages you have left or closed. Block Browser does not currently record ad-versus-tracker categories or top blocked domains.",13,ListPanel.MUTED);
+    if (a.blockingStats != null) {
+      Map<String,Long> domains=a.blockingStats.topDomains();
+      List<Map.Entry<String,Long>> ranked=new ArrayList<>(domains.entrySet());
+      ranked.sort((x,y)->Long.compare(y.getValue(),x.getValue()));
+      TextView domainsTitle=text(a,"Most blocked domains",19,ListPanel.TEXT);
+      domainsTitle.setPadding(0,a.dp(22),0,a.dp(8));
+      root.addView(domainsTitle);
+      if(ranked.isEmpty()) root.addView(text(a,"No domains recorded yet.",14,ListPanel.MUTED));
+      for(int i=0;i<Math.min(10,ranked.size());i++){
+        Map.Entry<String,Long> e=ranked.get(i);
+        TextView row=text(a,(i+1)+".  "+e.getKey()+"  ·  "+e.getValue(),14,ListPanel.TEXT);
+        row.setPadding(0,a.dp(7),0,a.dp(7));
+        root.addView(row);
+      }
+      Map<String,Long> days=a.blockingStats.daily();
+      List<String> dates=new ArrayList<>(days.keySet());
+      dates.sort(java.util.Collections.reverseOrder());
+      TextView dailyTitle=text(a,"Recent daily activity",19,ListPanel.TEXT);
+      dailyTitle.setPadding(0,a.dp(22),0,a.dp(8));
+      root.addView(dailyTitle);
+      for(int i=0;i<Math.min(7,dates.size());i++){
+        String date=dates.get(i);
+        root.addView(text(a,date+"  ·  "+days.get(date)+" blocked",14,ListPanel.MUTED));
+      }
+    }
+    TextView explanation=text(a,"The doughnut shows currently open page counters, which reset on navigation. The total and domain rankings include earlier pages. Ads, trackers and malware cannot be accurately separated using the current combined blocklist.",13,ListPanel.MUTED);
     explanation.setPadding(0,a.dp(24),0,a.dp(12));
     root.addView(explanation);
     TextView close=text(a,"DONE",15,ListPanel.ACCENT);
