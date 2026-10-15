@@ -32,7 +32,7 @@ final class SettingsPanels {
       suggestions.trailing = a.isPrivate() ? "Off" : suggest ? "On" : "Off";
       items.add(suggestions);
       items.add(ListPanel.Item.header("Browsing"));
-      ListPanel.Item home = new ListPanel.Item("⌂", "Homepage", UrlTools.display(a.homeUrl()), () -> a.homepageMenu(load[0]));
+      ListPanel.Item home = new ListPanel.Item("⌂", "Homepage", HomePage.isHome(a.homeUrl()) ? "Block Browser home" : UrlTools.display(a.homeUrl()), () -> a.homepageMenu(load[0]));
       items.add(home);
       ListPanel.Item zoom = new ListPanel.Item("A", "Text size", null, () -> a.textZoomMenu(load[0]));
       zoom.trailing = a.prefs.getInt("text_zoom", 100) + "%";

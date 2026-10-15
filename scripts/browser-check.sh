@@ -47,6 +47,10 @@ adb push "$OUT/browser.xml" /data/local/tmp/bb-browser.xml >/dev/null
 adb shell run-as "$PKG" mkdir -p shared_prefs
 adb shell run-as "$PKG" cp /data/local/tmp/bb-browser.xml shared_prefs/browser.xml
 adb logcat -c
+# Full device log for the whole run (published with the screenshots), to diagnose hangs and crashes.
+adb logcat -v time > "$OUT/logcat.txt" 2>&1 &
+LOGCAT=$!
+trap 'kill $SERVER $LOGCAT 2>/dev/null' EXIT
 
 # ---- helpers ----------------------------------------------------------------------------------------
 dump_raw(){ for _ in 1 2 3 4 5; do adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1 && adb pull /sdcard/ui.xml "$OUT/$1.xml" >/dev/null 2>&1 && return 0; sleep 2; done; return 1; }
@@ -128,6 +132,17 @@ diag(){
 dismiss_tip(){ dump tip >/dev/null 2>&1 || return 0; has tip text "Viewing full screen" contains && { tap_btn tip "Got it"; sleep 2; }; return 0; }
 dismiss_anr(){ dump anr >/dev/null 2>&1 || return 0; if grep -q "isn't responding\|isn&apos;t responding" "$OUT/anr.xml"; then tap_btn anr "Wait"; sleep 2; fi; }
 dismiss_anr
+
+# Brings the browser to the front with no menu, panel or dialog open, so each section starts clean.
+reset_ui(){
+  adb shell am start -n "$PKG/.MainActivity" >/dev/null 2>&1; sleep 2
+  for _ in 1 2 3 4; do
+    dump reset >/dev/null 2>&1 || break
+    has reset content-desc "Address bar" && ! has reset text "Done" && return 0
+    adb shell input keyevent KEYCODE_BACK; sleep 1
+  done
+  adb shell am start -n "$PKG/.MainActivity" >/dev/null 2>&1; sleep 2
+}
 
 # ---- 1. Several tabs --------------------------------------------------------------------------------
 open_url "$SITE/page?n=1"; sleep 6
@@ -277,7 +292,8 @@ if tap c1 text "Clear browsing data"; then
   else fail "Clear button not found"; diag c2; fi
 else fail "'Clear browsing data' not found in the menu"; echo "  - menu showed: $(screen_text c1)" >> "$SUMMARY"; fi
 
-# ---- 8b. Settings screens respond to taps --------------------------------------------------------------
+# ---- 8b. Settings screens respond to taps
+reset_ui
 # Menu -> Settings -> Search engine -> DuckDuckGo, then a search from the address bar must go to DuckDuckGo.
 open_menu_item(){ # $1 = dump prefix, $2 = menu label, $3 = "contains" to match part of the label
   local mode="${3:-exact}"
@@ -311,6 +327,7 @@ if open_menu_item set "Settings"; then
 else fail "'Settings' not found in the menu"; diag menu-settings; fi
 adb shell input keyevent KEYCODE_BACK; sleep 1
 
+reset_ui
 # Menu -> "Search engine: …" (directly in the menu) -> list of all 10 engines with Bing choosable.
 if open_menu_item eng "Search engine: DuckDuckGo"; then
   if wait_text eng-c "Mojeek" 8; then
@@ -324,6 +341,7 @@ if open_menu_item eng "Search engine: DuckDuckGo"; then
   else fail "Search engine list from the menu didn't open"; diag engine-open; fi
 else fail "'Search engine' not in the menu"; diag menu-engine; fi
 
+reset_ui
 # Menu -> Privacy and security -> ad blocking switch toggles and is saved.
 if open_menu_item priv "Privacy and security"; then
   if wait_text priv-c "Ad and tracker blocking" 8; then
@@ -335,6 +353,7 @@ if open_menu_item priv "Privacy and security"; then
 else fail "'Privacy and security' not found in the menu"; diag menu-privacy; fi
 adb shell input keyevent KEYCODE_BACK; sleep 1
 
+reset_ui
 # Menu -> History -> tapping an entry opens it (history was cleared above, so visit a page first).
 open_url "$SITE/page?n=9"; sleep 5
 open_url "$SITE/page?n=10"; sleep 5
@@ -345,6 +364,52 @@ if open_menu_item hist "History"; then
     if wait_for "d['hits'].get('9',0)>=1" 15; then pass "Tapping a history entry opens the page"; else fail "Tapping a history entry did nothing"; diag history; fi
   else fail "History screen didn't list visited pages"; diag history-list; fi
 else fail "'History' not found in the menu"; diag menu-history; fi
+
+# ---- 10. Block Browser home page
+reset_ui
+HOME_URL="https://appassets.androidplatform.net/home"
+echo "== $(date +%T) opening home page" | tee -a "$OUT/steps.txt"
+open_url "$HOME_URL"
+echo "== $(date +%T) adb state: $(adb get-state 2>&1)" | tee -a "$OUT/steps.txt"
+if wait_text home "Ads and trackers blocked" 15; then
+  pass "Home page opens (generated inside the app, no network)"
+  has home text "This session" && has home text "Today" && pass "Home page shows blocking counts (today, this session, all time)" || { fail "Home page blocking counts missing"; diag home-blocked; }
+  dump home2
+  if tap home2 text "or type a URL" contains || tap home2 class "android.widget.EditText"; then
+    sleep 1; adb shell input text "blockbrowser%shome%stest"; adb shell input keyevent KEYCODE_ENTER
+    if wait_text home3 "bing.com" 20 || has home3 text "duckduckgo.com" contains; then pass "Searching from the home page goes to the chosen search engine"
+    else fail "Home page search didn't reach the search engine"; diag home-search; fi
+  else fail "Home page search box not found"; diag home-box; fi
+else fail "Home page didn't load"; diag home; fi
+
+# ---- Screen tour: a screenshot of every screen, for reviewing the design (no pass/fail) ------------------
+reset_ui
+mkdir -p "$OUT/tour"
+tshot(){ sleep 2; adb exec-out screencap -p > "$OUT/tour/$1.png" 2>/dev/null || true; }
+back(){ adb shell input keyevent KEYCODE_BACK; sleep 1; }
+adb shell am start -W -n "$PKG/.MainActivity" >/dev/null; sleep 2; dismiss_tip
+open_url "$SITE/page?n=11"; sleep 5
+tshot 01-browser
+dump t0; tap t0 text "⋮"; tshot 02-menu-top
+dump t1; read -r SX SY EY < <(scroll_list t1) || true; [ -n "${SX:-}" ] && adb shell input swipe "$SX" "$SY" "$SX" "$EY" 500; tshot 03-menu-bottom
+back
+for item in "Settings:04-settings" "Privacy and security:05-privacy" "History:06-history" "Bookmarks:07-bookmarks" "Downloads:08-downloads" "Recently closed tabs:09-recently-closed" "Blocking statistics:10-statistics"; do
+  label="${item%%:*}"; name="${item##*:}"
+  reset_ui; if open_menu_item "tour-$name" "$label"; then tshot "$name"; fi
+done
+open_menu_item tour-eng "Search engine:" contains
+tshot 11-search-engines; back
+dump ts; tap ts content-desc "Site information" contains && tshot 12-site-info && back
+dump tt; tap tt content-desc "switch tabs" contains && tshot 13-tab-switcher && back
+if open_menu_item tour-clear "Clear browsing data"; then tshot 14-clear-dialog; back; fi
+if open_menu_item tour-hist "History"; then dump th; tap th text "Delete" && tshot 15-history-delete-dialog; back; back; fi
+dump tf; tap tf text "⋮"; sleep 1; dump tf2; tap tf2 content-desc "Add bookmark" && tshot 16-bookmarked-snackbar
+if open_menu_item tour-find "Find in page"; then adb shell input text "Paragraph"; tshot 17-find-bar; back; back; fi
+open_url "http://localhost:1/unreachable"; sleep 4; tshot 18-error-page
+open_url "https://appassets.androidplatform.net/home"; sleep 4; tshot 19-home
+adb shell input swipe 500 1600 500 400 400; sleep 1; tshot 20-home-scrolled
+if [ "$API" -ge 28 ]; then open_private "https://appassets.androidplatform.net/home"; sleep 6; tshot 21-private-home; back; fi
+echo "Tour screenshots: $(ls "$OUT/tour" | wc -l)"
 
 # ---- 9. A page's renderer dies --------------------------------------------------------------------------------
 open_url "$SITE/page?n=7"; sleep 4
@@ -364,31 +429,6 @@ if adb root >/dev/null 2>&1 && sleep 3 && adb wait-for-device && [ "$(adb shell 
   adb unroot >/dev/null 2>&1; sleep 3; adb wait-for-device
   adb reverse "tcp:$PORT" "tcp:$PORT" >/dev/null   # adbd restarted, so the port forwarding must be set again
 else skip "adb root not available; renderer crash test skipped"; fi
-
-# ---- Screen tour: a screenshot of every screen, for reviewing the design (no pass/fail) ------------------
-mkdir -p "$OUT/tour"
-tshot(){ sleep 2; adb exec-out screencap -p > "$OUT/tour/$1.png" 2>/dev/null || true; }
-back(){ adb shell input keyevent KEYCODE_BACK; sleep 1; }
-adb shell am start -W -n "$PKG/.MainActivity" >/dev/null; sleep 2; dismiss_tip
-open_url "$SITE/page?n=11"; sleep 5
-tshot 01-browser
-dump t0; tap t0 text "⋮"; tshot 02-menu-top
-dump t1; read -r SX SY EY < <(scroll_list t1) || true; [ -n "${SX:-}" ] && adb shell input swipe "$SX" "$SY" "$SX" "$EY" 500; tshot 03-menu-bottom
-back
-for item in "Settings:04-settings" "Privacy and security:05-privacy" "History:06-history" "Bookmarks:07-bookmarks" "Downloads:08-downloads" "Recently closed tabs:09-recently-closed" "Blocking statistics:10-statistics"; do
-  label="${item%%:*}"; name="${item##*:}"
-  if open_menu_item "tour-$name" "$label"; then tshot "$name"; back; fi
-done
-open_menu_item tour-eng "Search engine:" contains
-tshot 11-search-engines; back
-dump ts; tap ts content-desc "Site information" contains && tshot 12-site-info && back
-dump tt; tap tt content-desc "switch tabs" contains && tshot 13-tab-switcher && back
-if open_menu_item tour-clear "Clear browsing data"; then tshot 14-clear-dialog; back; fi
-if open_menu_item tour-hist "History"; then dump th; tap th text "Delete" && tshot 15-history-delete-dialog; back; back; fi
-dump tf; tap tf text "⋮"; sleep 1; dump tf2; tap tf2 content-desc "Add bookmark" && tshot 16-bookmarked-snackbar
-if open_menu_item tour-find "Find in page"; then adb shell input text "Paragraph"; tshot 17-find-bar; back; back; fi
-open_url "http://localhost:1/unreachable"; sleep 4; tshot 18-error-page
-echo "Tour screenshots: $(ls "$OUT/tour" | wc -l)"
 
 { echo; echo "Passed: $PASSED"; } >> "$SUMMARY"
 [ -n "${GITHUB_STEP_SUMMARY:-}" ] && cat "$SUMMARY" >> "$GITHUB_STEP_SUMMARY"

@@ -20,6 +20,11 @@ final class SitePanels {
   static void showSiteInfo(MainActivity a) {
     Tab t = a.currentTab();
     String url = t == null ? null : t.currentUrl();
+    if (HomePage.isHome(url)) {
+      new AlertDialog.Builder(a).setTitle("Block Browser home").setMessage("This page is part of the app. It isn't loaded from the internet, and searches go to "
+          + MainActivity.ENGINE_NAMES[a.engine()] + ".").setPositiveButton("OK", null).show();
+      return;
+    }
     if (!UrlTools.isWebUrl(url)) {
       new AlertDialog.Builder(a).setTitle("Site information").setMessage("This page has no site information.").setPositiveButton("OK", null).show();
       return;

@@ -228,7 +228,12 @@ public class MainActivity extends Activity {
   }
 
   String searchPrefix() { return ENGINE_URLS[engine()]; }
-  String homeUrl() { return prefs.getString("homepage", "https://www.google.com"); }
+  /** Block Browser's own start page unless the user chose another address (the old google.com default counts as unset). */
+  String homeUrl() {
+    String h = prefs.getString("homepage", null);
+    if (h == null || h.equals("https://www.google.com") || h.equals("https://www.google.com/")) return HomePage.URL;
+    return h;
+  }
   boolean stripTrackingOn() { return prefs.getBoolean("strip_tracking", true); }
   boolean searchSuggestionsOn() { return !isPrivate() && prefs.getBoolean("search_suggestions", false); }
 
@@ -718,7 +723,9 @@ public class MainActivity extends Activity {
     if (findBar.getVisibility() == View.VISIBLE) closeFind();
     current = n;
     t.lastUsed = System.currentTimeMillis();
+    boolean wasLive = t.web != null;
     activate(t);
+    if (wasLive && old != t && HomePage.isHome(t.currentUrl()) && !t.loading) t.web.reload(); // fresh blocking counts
     frame.removeAllViews();
     if (t.web.getParent() != null) ((ViewGroup) t.web.getParent()).removeView(t.web);
     frame.addView(t.web, new FrameLayout.LayoutParams(-1, -1));
@@ -1073,7 +1080,13 @@ public class MainActivity extends Activity {
   // Waits briefly so a just-closed private process has exited; skipped while a private window is running.
   final Runnable privateCleanup = () -> PrivateProfile.wipeFromMainProcess(this);
   void schedulePrivateCleanup() { sessionHandler.removeCallbacks(privateCleanup); sessionHandler.postDelayed(privateCleanup, 2000); }
-  @Override protected void onResume() { super.onResume(); schedulePrivateCleanup(); }
+  @Override protected void onResume() {
+    super.onResume();
+    schedulePrivateCleanup();
+    // The home page shows live blocking counts; refresh it when coming back to the app.
+    Tab t = currentTab();
+    if (t != null && t.web != null && HomePage.isHome(t.currentUrl()) && !t.loading) t.web.reload();
+  }
 
   // =====================================================================================================
   // Links into the browser
@@ -1147,14 +1160,16 @@ public class MainActivity extends Activity {
 
   void setAddressText(String url) {
     if (address.hasFocus()) return; // never overwrite what the user is typing
-    address.setText(url == null ? "" : url, false);
+    // On the home page the address bar stays empty, ready for a search (like a new tab in other browsers).
+    address.setText(url == null || HomePage.isHome(url) ? "" : url, false);
   }
 
   void updateToolbar(Tab t) {
     if (t == null) return;
     String url = t.currentUrl();
     setAddressText(url);
-    if (t.errorUrl != null) { siteButton.setText("⚠"); siteButton.setContentDescription("Site information: page could not be loaded"); }
+    if (HomePage.isHome(url)) { siteButton.setText(isPrivate() ? "◈" : "⛨"); siteButton.setContentDescription("Block Browser home page"); }
+    else if (t.errorUrl != null) { siteButton.setText("⚠"); siteButton.setContentDescription("Site information: page could not be loaded"); }
     else if (url != null && url.startsWith("https://")) { siteButton.setText("🔒"); siteButton.setContentDescription("Site information: secure connection"); }
     else if (url != null && url.startsWith("http://")) { siteButton.setText("⚠"); siteButton.setContentDescription("Site information: connection is not secure"); }
     else { siteButton.setText("ⓘ"); siteButton.setContentDescription("Site information"); }
@@ -1288,6 +1303,7 @@ public class MainActivity extends Activity {
     @Override public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest req) {
       String host = req.getUrl().getHost();
       boolean main = req.isForMainFrame();
+      if (main && HomePage.isHome(req.getUrl().toString())) { tab.pageHost = ""; tab.blocked.set(0); return HomePage.response(MainActivity.this); }
       if (main && host != null) tab.pageHost = host.toLowerCase(Locale.ROOT);
       if (!shouldBlock(tab, host, main)) return null;
       blockedCount.incrementAndGet();
@@ -1344,6 +1360,7 @@ public class MainActivity extends Activity {
       Uri uri = request.getUrl();
       String s = uri.toString();
       String scheme = uri.getScheme() == null ? "" : uri.getScheme().toLowerCase(Locale.ROOT);
+      if (HomePage.isStatsLink(s)) { runOnUiThread(() -> PrivacyChart.show(MainActivity.this)); return true; }
       if (scheme.equals("http") || scheme.equals("https")) {
         if (request.isForMainFrame()) {
           tab.url = s;
@@ -1489,6 +1506,7 @@ public class MainActivity extends Activity {
     }
 
     @Override public void onReceivedIcon(WebView view, Bitmap icon) {
+      if (HomePage.isHome(view.getUrl())) return;
       tab.favicon = icon;
       String url = view.getUrl();
       if (UrlTools.isWebUrl(url)) favicons().put(UrlTools.host(url), icon);
@@ -1807,7 +1825,7 @@ public class MainActivity extends Activity {
   void menu() {
     Tab t = currentTab();
     String url = t == null ? null : t.currentUrl();
-    boolean web = UrlTools.isWebUrl(url);
+    boolean web = UrlTools.isWebUrl(url) && !HomePage.isHome(url);
     boolean bookmarked = web && bookmarks().contains(url);
 
     // Quick actions along the top: back, forward, reload, bookmark, site information.
@@ -2116,11 +2134,22 @@ public class MainActivity extends Activity {
   }
 
   void homepageMenu(Runnable after) {
+    boolean custom = !HomePage.isHome(homeUrl());
+    String[] choices = {"Block Browser home (search + blocking stats)", "Another address…"};
+    new AlertDialog.Builder(this).setTitle("Homepage").setSingleChoiceItems(choices, custom ? 1 : 0, (d, which) -> {
+      d.dismiss();
+      if (which == 0) { prefs.edit().remove("homepage").apply(); if (after != null) after.run(); }
+      else customHomepage(after);
+    }).setNegativeButton("Cancel", null).show();
+  }
+
+  void customHomepage(Runnable after) {
     EditText input = new EditText(this);
     input.setSingleLine(true);
     input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
-    input.setText(homeUrl());
-    new AlertDialog.Builder(this).setTitle("Homepage").setView(input).setPositiveButton("Save", (d, n) -> {
+    input.setText(HomePage.isHome(homeUrl()) ? "https://" : homeUrl());
+    input.setSelection(input.getText().length());
+    new AlertDialog.Builder(this).setTitle("Homepage address").setView(input).setPositiveButton("Save", (d, n) -> {
       String value = input.getText().toString().trim();
       if (UrlTools.isWebUrl(value)) { prefs.edit().putString("homepage", value).apply(); if (after != null) after.run(); }
       else toast("Enter a complete http or https address");

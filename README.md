@@ -8,6 +8,7 @@ Block Browser is a lightweight Android web browser with built-in ad and tracker 
 
 - **Built-in ad and tracker blocking** — requests to about 215,000 known advertising, tracking and malicious domains (and their subdomains) are stopped. Turn it off for a single site from the site information button if the site breaks.
 - **Private windows** — a separate process with its own cookies and storage, deleted when the window closes (see below).
+- **Home page** — Block Browser's own start page and new tab: a search box (your chosen search engine, Google by default), shortcuts to your most visited sites, and how many ads and trackers were blocked today, this session and in total, with a 7-day chart and the most-blocked domains. It's built into the app, never loaded from the internet. Settings → Homepage can switch to any other address.
 - **Smart address bar** — suggestions from your bookmarks and history with titles and site icons, ranked by how well the address matches and how often and recently you visited. Optional suggestions from your search engine (off by default).
 - **Tabs** — a grid of open tabs with page previews: swipe or tap × to close, Undo, drag to reorder, duplicate, close others or all. Links from other apps open in a new tab. Tabs are restored after a restart, and only load when you open them.
 - **Bookmarks** — folders, edit, move and delete, search, and import or export as an HTML file (works with Chrome, Firefox, Edge and Safari) or JSON.
