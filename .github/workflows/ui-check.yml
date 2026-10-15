@@ -175,20 +175,25 @@ jobs:
       # Screenshots of every screen, pushed to the "ci-screenshots" branch so they can be reviewed without
       # downloading artifacts (folder per commit and Android version; older ones are replaced).
       - name: Publish screen tour
-        if: always() && matrix.api-level == 35
+        if: always()
         env:
           GH_TOKEN: ${{ github.token }}
           SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
-          [ -d browser-check-output/tour ] || exit 0
           dir="$RUNNER_TEMP/shots"; rm -rf "$dir"; mkdir -p "$dir/api-${{ matrix.api-level }}"
-          cp browser-check-output/tour/*.png "$dir/api-${{ matrix.api-level }}/" 2>/dev/null || exit 0
-          cp browser-check-output/*.png "$dir/api-${{ matrix.api-level }}/" 2>/dev/null || true
+          cp browser-check-output/tour/*.png "$dir/api-${{ matrix.api-level }}/" 2>/dev/null || true
+          cp browser-check-output/*.png browser-check-output/*.md browser-check-output/*.txt "$dir/api-${{ matrix.api-level }}/" 2>/dev/null || true
+          # Keep the device log small enough for git: the app's own lines plus crashes and system errors.
+          if [ -f browser-check-output/logcat.txt ]; then
+            grep -E "blockbrowser|BlockBrowser|chromium|cr_|FATAL|AndroidRuntime|ANR|Fatal signal|lowmemorykiller|DEBUG|libc|WebView|ActivityManager|ActivityTaskManager|SurfaceFlinger" browser-check-output/logcat.txt | tail -n 20000 > "$dir/api-${{ matrix.api-level }}/logcat-filtered.txt" || true
+            tail -n 3000 browser-check-output/logcat.txt > "$dir/api-${{ matrix.api-level }}/logcat-tail.txt" || true
+            rm -f "$dir/api-${{ matrix.api-level }}/logcat.txt"
+          fi
           echo "Commit $SHA" > "$dir/README.md"
-          cd "$dir" && git init -q && git checkout -q -b ci-screenshots
+          cd "$dir" && git init -q && git checkout -q -b ci-screenshots-api-${{ matrix.api-level }}
           git -c user.name=ci -c user.email=ci@localhost add -A
           git -c user.name=ci -c user.email=ci@localhost commit -q -m "Screens for $SHA"
-          git push -q -f "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" ci-screenshots
+          git push -q -f "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" ci-screenshots-api-${{ matrix.api-level }}
 
       - name: Upload results
         if: always()

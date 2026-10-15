@@ -47,6 +47,10 @@ adb push "$OUT/browser.xml" /data/local/tmp/bb-browser.xml >/dev/null
 adb shell run-as "$PKG" mkdir -p shared_prefs
 adb shell run-as "$PKG" cp /data/local/tmp/bb-browser.xml shared_prefs/browser.xml
 adb logcat -c
+# Full device log for the whole run (published with the screenshots), to diagnose hangs and crashes.
+adb logcat -v time > "$OUT/logcat.txt" 2>&1 &
+LOGCAT=$!
+trap 'kill $SERVER $LOGCAT 2>/dev/null' EXIT
 
 # ---- helpers ----------------------------------------------------------------------------------------
 dump_raw(){ for _ in 1 2 3 4 5; do adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1 && adb pull /sdcard/ui.xml "$OUT/$1.xml" >/dev/null 2>&1 && return 0; sleep 2; done; return 1; }
@@ -364,7 +368,9 @@ else fail "'History' not found in the menu"; diag menu-history; fi
 # ---- 10. Block Browser home page
 reset_ui
 HOME="https://appassets.androidplatform.net/home"
+echo "== $(date +%T) opening home page" | tee -a "$OUT/steps.txt"
 open_url "$HOME"
+echo "== $(date +%T) adb state: $(adb get-state 2>&1)" | tee -a "$OUT/steps.txt"
 if wait_text home "Ads and trackers blocked" 15; then
   pass "Home page opens (generated inside the app, no network)"
   has home text "This session" && has home text "Today" && pass "Home page shows blocking counts (today, this session, all time)" || { fail "Home page blocking counts missing"; diag home-blocked; }
