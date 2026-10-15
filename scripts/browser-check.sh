@@ -367,9 +367,9 @@ else fail "'History' not found in the menu"; diag menu-history; fi
 
 # ---- 10. Block Browser home page
 reset_ui
-HOME="https://appassets.androidplatform.net/home"
+HOME_URL="https://appassets.androidplatform.net/home"
 echo "== $(date +%T) opening home page" | tee -a "$OUT/steps.txt"
-open_url "$HOME"
+open_url "$HOME_URL"
 echo "== $(date +%T) adb state: $(adb get-state 2>&1)" | tee -a "$OUT/steps.txt"
 if wait_text home "Ads and trackers blocked" 15; then
   pass "Home page opens (generated inside the app, no network)"
