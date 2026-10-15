@@ -116,7 +116,9 @@ else fail "Undo did not restore the tab as expected"; diag undone; fi
 tap undone content-desc "Done"; sleep 1
 
 # ---- 3. Session restore after force-stop ---------------------------------------------------------------
-for _ in 1 2 3; do adb shell input swipe 500 1500 500 500 300; sleep 1; done
+read -r SW SH < <(adb shell wm size | grep -oE '[0-9]+x[0-9]+' | tail -1 | tr 'x' ' ')
+echo "screen ${SW}x${SH}"
+for _ in 1 2 3; do adb shell input swipe $((SW / 2)) $((SH * 3 / 4)) $((SW / 2)) $((SH / 4)) 300; sleep 1; done
 sleep 3
 adb shell am force-stop "$PKG"; sleep 1
 reset_hits

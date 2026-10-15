@@ -167,6 +167,7 @@ jobs:
           arch: x86_64
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
+          profile: pixel_6
           script: ./scripts/browser-check.sh
 
       - name: Upload results

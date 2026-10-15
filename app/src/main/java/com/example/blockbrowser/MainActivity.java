@@ -435,6 +435,10 @@ public class MainActivity extends Activity {
     outer.addView(exitFs, exitLp);
 
     buildSnackbar();
+    // Keep focus off the address bar when a window opens, so the keyboard stays hidden and Back acts on the page.
+    root.setFocusableInTouchMode(true);
+    root.setDescendantFocusability(ViewGroup.FOCUS_BEFORE_DESCENDANTS);
+    root.requestFocus();
   }
 
   void buildFindBar() {
@@ -1629,11 +1633,19 @@ public class MainActivity extends Activity {
     }
   }
 
+  /** Location requests waiting for the user's answer, by site; repeated requests share one prompt. */
+  final java.util.HashMap<String, ArrayList<GeolocationPermissions.Callback>> pendingGeo = new java.util.HashMap<>();
+
   void handleGeolocationRequest(String rawOrigin, GeolocationPermissions.Callback callback) {
     String origin = originOf(rawOrigin);
     int decision = siteSettings.get(origin, SiteSettings.LOCATION);
     if (decision == SiteSettings.BLOCK) { callback.invoke(rawOrigin, false, false); return; }
     if (decision == SiteSettings.ALLOW) { finishGeolocation(rawOrigin, callback); return; }
+    ArrayList<GeolocationPermissions.Callback> waiting = pendingGeo.get(origin);
+    if (waiting != null) { waiting.add(callback); return; }
+    waiting = new ArrayList<>();
+    waiting.add(callback);
+    pendingGeo.put(origin, waiting);
     FrameLayout box = new FrameLayout(this);
     CheckBox remember = rememberBox(box);
     new AlertDialog.Builder(this)
@@ -1641,14 +1653,20 @@ public class MainActivity extends Activity {
         .setView(box)
         .setPositiveButton("Allow", (d, n) -> {
           if (remember.isChecked()) siteSettings.set(origin, SiteSettings.LOCATION, SiteSettings.ALLOW);
-          finishGeolocation(rawOrigin, callback);
+          ArrayList<GeolocationPermissions.Callback> all = pendingGeo.remove(origin);
+          if (all != null) for (GeolocationPermissions.Callback c : all) finishGeolocation(rawOrigin, c);
         })
         .setNegativeButton("Block", (d, n) -> {
           if (remember.isChecked()) siteSettings.set(origin, SiteSettings.LOCATION, SiteSettings.BLOCK);
-          callback.invoke(rawOrigin, false, false);
+          answerGeo(origin, rawOrigin, false);
         })
-        .setOnCancelListener(d -> callback.invoke(rawOrigin, false, false))
+        .setOnCancelListener(d -> answerGeo(origin, rawOrigin, false))
         .show();
+  }
+
+  void answerGeo(String origin, String rawOrigin, boolean allow) {
+    ArrayList<GeolocationPermissions.Callback> all = pendingGeo.remove(origin);
+    if (all != null) for (GeolocationPermissions.Callback c : all) c.invoke(rawOrigin, allow, false);
   }
 
   void finishGeolocation(String rawOrigin, GeolocationPermissions.Callback callback) {
