@@ -272,15 +272,16 @@ else fail "'Clear browsing data' not found in the menu"; echo "  - menu showed: 
 
 # ---- 8b. Settings screens respond to taps --------------------------------------------------------------
 # Menu -> Settings -> Search engine -> DuckDuckGo, then a search from the address bar must go to DuckDuckGo.
-open_menu_item(){ # $1 = dump prefix, $2 = menu label
+open_menu_item(){ # $1 = dump prefix, $2 = menu label, $3 = "contains" to match part of the label
+  local mode="${3:-exact}"
   dump "$1-a"; tap "$1-a" text "⋮"; sleep 2; dump "$1-b"
   for _ in 1 2 3 4; do
-    has "$1-b" text "$2" && break
+    has "$1-b" text "$2" "$mode" && break
     read -r SX SY EY < <(scroll_list "$1-b") || true
     [ -z "${SX:-}" ] && break
     adb shell input swipe "$SX" "$SY" "$SX" "$EY" 500; sleep 1; dump "$1-b"
   done
-  tap "$1-b" text "$2"
+  tap "$1-b" text "$2" "$mode"
 }
 dismiss_tip
 if open_menu_item set "Settings"; then
@@ -354,6 +355,31 @@ if adb root >/dev/null 2>&1 && sleep 3 && adb wait-for-device && [ "$(adb shell 
   else skip "No separate WebView renderer process on this emulator (WebView runs in the app process)"; fi
   adb unroot >/dev/null 2>&1; sleep 3; adb wait-for-device
 else skip "adb root not available; renderer crash test skipped"; fi
+
+# ---- Screen tour: a screenshot of every screen, for reviewing the design (no pass/fail) ------------------
+mkdir -p "$OUT/tour"
+tshot(){ sleep 2; adb exec-out screencap -p > "$OUT/tour/$1.png" 2>/dev/null || true; }
+back(){ adb shell input keyevent KEYCODE_BACK; sleep 1; }
+adb shell am start -W -n "$PKG/.MainActivity" >/dev/null; sleep 2; dismiss_tip
+open_url "$SITE/page?n=11"; sleep 5
+tshot 01-browser
+dump t0; tap t0 text "⋮"; tshot 02-menu-top
+dump t1; read -r SX SY EY < <(scroll_list t1) || true; [ -n "${SX:-}" ] && adb shell input swipe "$SX" "$SY" "$SX" "$EY" 500; tshot 03-menu-bottom
+back
+for item in "Settings:04-settings" "Privacy and security:05-privacy" "History:06-history" "Bookmarks:07-bookmarks" "Downloads:08-downloads" "Recently closed tabs:09-recently-closed" "Blocking statistics:10-statistics"; do
+  label="${item%%:*}"; name="${item##*:}"
+  if open_menu_item "tour-$name" "$label"; then tshot "$name"; back; fi
+done
+open_menu_item tour-eng "Search engine:" contains
+tshot 11-search-engines; back
+dump ts; tap ts content-desc "Site information" contains && tshot 12-site-info && back
+dump tt; tap tt content-desc "switch tabs" contains && tshot 13-tab-switcher && back
+if open_menu_item tour-clear "Clear browsing data"; then tshot 14-clear-dialog; back; fi
+if open_menu_item tour-hist "History"; then dump th; tap th text "Delete" && tshot 15-history-delete-dialog; back; back; fi
+dump tf; tap tf text "⋮"; sleep 1; dump tf2; tap tf2 content-desc "Add bookmark" && tshot 16-bookmarked-snackbar
+if open_menu_item tour-find "Find in page"; then adb shell input text "Paragraph"; tshot 17-find-bar; back; back; fi
+open_url "http://localhost:1/unreachable"; sleep 4; tshot 18-error-page
+echo "Tour screenshots: $(ls "$OUT/tour" | wc -l)"
 
 { echo; echo "Passed: $PASSED"; } >> "$SUMMARY"
 [ -n "${GITHUB_STEP_SUMMARY:-}" ] && cat "$SUMMARY" >> "$GITHUB_STEP_SUMMARY"
