@@ -270,6 +270,61 @@ if tap c1 text "Clear browsing data"; then
   else fail "Clear button not found"; diag c2; fi
 else fail "'Clear browsing data' not found in the menu"; echo "  - menu showed: $(screen_text c1)" >> "$SUMMARY"; fi
 
+# ---- 8b. Settings screens respond to taps --------------------------------------------------------------
+# Menu -> Settings -> Search engine -> DuckDuckGo, then a search from the address bar must go to DuckDuckGo.
+open_menu_item(){ # $1 = dump prefix, $2 = menu label
+  dump "$1-a"; tap "$1-a" text "⋮"; sleep 2; dump "$1-b"
+  for _ in 1 2 3 4; do
+    has "$1-b" text "$2" && break
+    read -r SX SY EY < <(scroll_list "$1-b") || true
+    [ -z "${SX:-}" ] && break
+    adb shell input swipe "$SX" "$SY" "$SX" "$EY" 500; sleep 1; dump "$1-b"
+  done
+  tap "$1-b" text "$2"
+}
+dismiss_tip
+if open_menu_item set "Settings"; then
+  if wait_text set-c "Search engine" 8; then
+    tap set-c text "Search engine"
+    if wait_text set-d "DuckDuckGo" 8; then
+      shot 6-search-engines
+      tap set-d text "DuckDuckGo"; sleep 2
+      ENGINE=$(adb shell run-as "$PKG" cat shared_prefs/browser.xml | grep -o 'name="search_engine" value="[0-9]*"' | grep -o '[0-9]*$')
+      [ "$ENGINE" = "2" ] && pass "Choosing DuckDuckGo in Settings saves it" || { fail "Search engine not saved after tapping DuckDuckGo (saved: '${ENGINE:-none}')"; diag engine; }
+      dump set-e
+      if has set-e text "DuckDuckGo" && has set-e text "Search engine"; then pass "Settings screen shows the chosen engine"; else fail "Settings didn't update after choosing an engine"; diag engine2; fi
+      adb shell input keyevent KEYCODE_BACK; sleep 2
+      dump srch; tap srch content-desc "Address bar"; sleep 1
+      adb shell input text "blockbrowser%stest"; adb shell input keyevent KEYCODE_ENTER; sleep 4
+      dump srch2
+      if has srch2 text "duckduckgo.com" contains; then pass "Address-bar search uses the chosen engine"; else fail "Search didn't go to DuckDuckGo"; diag search; fi
+    else fail "Search engine list didn't open"; diag engines; fi
+  else fail "Settings screen didn't open"; diag settings; fi
+else fail "'Settings' not found in the menu"; diag menu-settings; fi
+adb shell input keyevent KEYCODE_BACK; sleep 1
+
+# Menu -> Privacy and security -> ad blocking switch toggles and is saved.
+if open_menu_item priv "Privacy and security"; then
+  if wait_text priv-c "Ad and tracker blocking" 8; then
+    tap priv-c text "Ad and tracker blocking"; sleep 2
+    AD=$(adb shell run-as "$PKG" cat shared_prefs/browser.xml | grep -o 'name="adblock" value="[a-z]*"' | grep -o '[a-z]*"$' | tr -d '"')
+    [ "$AD" = "false" ] && pass "Ad-blocking switch in Privacy and security works" || { fail "Ad-blocking switch didn't change the setting (saved: '${AD:-none}')"; diag adblock; }
+    dump priv-d; tap priv-d text "Ad and tracker blocking"; sleep 1   # back on
+  else fail "Privacy and security screen didn't open"; diag privacy; fi
+else fail "'Privacy and security' not found in the menu"; diag menu-privacy; fi
+adb shell input keyevent KEYCODE_BACK; sleep 1
+
+# Menu -> History -> tapping an entry opens it (history was cleared above, so visit a page first).
+open_url "$SITE/page?n=9"; sleep 5
+open_url "$SITE/page?n=10"; sleep 5
+if open_menu_item hist "History"; then
+  if wait_text hist-c "Page 9" 8; then
+    reset_hits
+    tap hist-c text "Page 9"
+    if wait_for "d['hits'].get('9',0)>=1" 15; then pass "Tapping a history entry opens the page"; else fail "Tapping a history entry did nothing"; diag history; fi
+  else fail "History screen didn't list visited pages"; diag history-list; fi
+else fail "'History' not found in the menu"; diag menu-history; fi
+
 # ---- 9. A page's renderer dies --------------------------------------------------------------------------------
 open_url "$SITE/page?n=7"; sleep 4
 APP_PID=$(adb shell pidof "$PKG" | tr -d '\r')

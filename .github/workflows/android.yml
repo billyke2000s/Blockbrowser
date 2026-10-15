@@ -73,7 +73,6 @@ jobs:
 
       # Search suggestions use informal endpoints that can change without notice; report, don't fail.
       - name: Check search-suggestion endpoints
-        continue-on-error: true
         run: ./scripts/check-suggest-endpoints.sh
 
       - name: Build debug APK
@@ -115,8 +114,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="build-${{ github.run_number }}"
+          if [ -n "${BB_KEYSTORE:-}" ]; then
+            NOTES="Automatic build from commit ${{ github.sha }}, signed with the Block Browser key. Installs over earlier builds signed with the same key."
+          else
+            NOTES="Automatic build from commit ${{ github.sha }}. Signed with a throwaway key: it can't be installed over an existing Block Browser (uninstall first)."
+          fi
           cp app/build/outputs/apk/debug/app-debug.apk BlockBrowser-debug.apk
           gh release create "$TAG" BlockBrowser-debug.apk \
             --title "Block Browser $TAG" \
-            --notes "Automatically built debug APK from commit ${{ github.sha }}. For testing; not a production-signed release." \
+            --notes "$NOTES" \
             --target "${{ github.sha }}"

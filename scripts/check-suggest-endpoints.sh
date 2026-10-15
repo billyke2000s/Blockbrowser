@@ -27,4 +27,6 @@ PY
   if [ "${count:-0}" -gt 0 ]; then echo "::notice::Suggestions OK ($count) from ${url%%\?*}"
   else echo "::warning::No usable suggestions from ${url%%\?*} — response starts: $(echo "$body" | head -c 120 | tr '\n' ' ')"; BAD=1; fi
 done
-exit $BAD
+# Report only: warnings above, never a failed step.
+[ "$BAD" -eq 0 ] || echo "Some suggestion endpoints didn't answer usefully from CI (see warnings)."
+exit 0

@@ -109,6 +109,11 @@ public class MainActivity extends Activity {
   final Handler handler = new Handler(Looper.getMainLooper());        // full-screen control fade only
   final Handler sessionHandler = new Handler(Looper.getMainLooper()); // saving, undo, cleanup
   final ExecutorService background = Executors.newFixedThreadPool(2, r -> new Thread(r, "browser-bg"));
+
+  /** Runs work off the UI thread; silently skipped once the window has closed (the executor is shut down then). */
+  void runInBackground(Runnable r) {
+    try { background.execute(r); } catch (java.util.concurrent.RejectedExecutionException ignored) {}
+  }
   Runnable fadeTask, sessionSave, snackbarHide;
   boolean fullscreen = false, fullscreenBeforeVideo = false, immersiveRequested = false, restoringSession = false;
   View customView;

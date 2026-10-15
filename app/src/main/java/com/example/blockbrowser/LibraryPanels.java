@@ -42,7 +42,7 @@ final class LibraryPanels {
     Runnable[] load = new Runnable[1];
     load[0] = () -> {
       String q = panel.query();
-      a.background.execute(() -> {
+      a.runInBackground(() -> {
         List<HistoryStore.Entry> entries = a.history().recent(q, 1000);
         Map<String, Bitmap> icons = icons(a, entries);
         a.runOnUiThread(() -> panel.setItems(historyItems(a, entries, icons, load[0])));
@@ -122,7 +122,7 @@ final class LibraryPanels {
     ListPanel panel = new ListPanel(a, "History by website");
     panel.setEmptyText("No history yet.");
     Runnable[] load = new Runnable[1];
-    load[0] = () -> a.background.execute(() -> {
+    load[0] = () -> a.runInBackground(() -> {
       List<HistoryStore.Entry> entries = a.history().recent(panel.query(), HistoryStore.MAX_ENTRIES);
       LinkedHashMap<String, Integer> counts = new LinkedHashMap<>();
       for (HistoryStore.Entry e : entries) counts.put(e.host, counts.containsKey(e.host) ? counts.get(e.host) + 1 : 1);
@@ -149,7 +149,7 @@ final class LibraryPanels {
   static void showSiteHistory(MainActivity a, String host, Runnable after) {
     ListPanel panel = new ListPanel(a, host);
     Runnable[] load = new Runnable[1];
-    load[0] = () -> a.background.execute(() -> {
+    load[0] = () -> a.runInBackground(() -> {
       List<HistoryStore.Entry> entries = a.history().forHost(host, 2000);
       Map<String, Bitmap> icons = icons(a, entries);
       a.runOnUiThread(() -> panel.setItems(historyItems(a, entries, icons, load[0])));
@@ -406,7 +406,7 @@ final class LibraryPanels {
     boolean started = a.startForResult(intent, (result, data) -> {
       if (result != android.app.Activity.RESULT_OK || data == null || data.getData() == null) return;
       Uri target = data.getData();
-      a.background.execute(() -> {
+      a.runInBackground(() -> {
         try (OutputStream out = a.getContentResolver().openOutputStream(target, "wt")) {
           if (out == null) throw new IllegalStateException("cannot write");
           out.write(content.get().getBytes(StandardCharsets.UTF_8));
@@ -427,7 +427,7 @@ final class LibraryPanels {
     boolean started = a.startForResult(intent, (result, data) -> {
       if (result != android.app.Activity.RESULT_OK || data == null || data.getData() == null) return;
       Uri source = data.getData();
-      a.background.execute(() -> {
+      a.runInBackground(() -> {
         String text;
         try (InputStream in = a.getContentResolver().openInputStream(source)) {
           if (in == null) throw new IllegalStateException("cannot read");
