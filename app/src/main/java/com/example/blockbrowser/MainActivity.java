@@ -446,12 +446,13 @@ public class MainActivity extends Activity {
   void buildFindBar() {
     findBar = new LinearLayout(this);
     findBar.setGravity(Gravity.CENTER_VERTICAL);
-    findBar.setBackgroundColor(PANEL);
-    findBar.setPadding(dp(8), dp(4), dp(4), dp(4));
+    findBar.setBackground(rounded(PANEL, 20));
+    findBar.setPadding(dp(12), dp(6), dp(8), dp(6));
+    findBar.setElevation(dp(6));
     findBar.setVisibility(View.GONE);
     findInput = new EditText(this);
     findInput.setSingleLine(true);
-    findInput.setHint("Find in page");
+    findInput.setHint("Search this page");
     findInput.setContentDescription("Find in page");
     findInput.setTextColor(TEXT);
     findInput.setHintTextColor(MUTED);
