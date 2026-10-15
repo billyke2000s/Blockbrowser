@@ -67,13 +67,13 @@ final class ListPanel {
 
     LinearLayout header = new LinearLayout(activity);
     header.setGravity(Gravity.CENTER_VERTICAL);
-    header.setPadding(dp(4), dp(4), dp(8), dp(4));
+    header.setPadding(dp(8), dp(12), dp(12), dp(12));
     TextView back = iconButton("←", "Back", this::dismiss);
     header.addView(back);
     titleView = new TextView(activity);
     titleView.setText(title);
     titleView.setTextColor(TEXT);
-    titleView.setTextSize(19);
+    titleView.setTextSize(22);
     titleView.setTypeface(null, Typeface.BOLD);
     titleView.setSingleLine(true);
     titleView.setEllipsize(android.text.TextUtils.TruncateAt.END);
@@ -87,7 +87,7 @@ final class ListPanel {
     search.setTextColor(TEXT);
     search.setHintTextColor(MUTED);
     search.setTextSize(15);
-    search.setBackground(rounded(PANEL, 22));
+    search.setBackground(rounded(PANEL, 24));
     search.setPadding(dp(16), 0, dp(16), 0);
     search.setVisibility(View.GONE);
     LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(46));
@@ -97,6 +97,9 @@ final class ListPanel {
     FrameLayout body = new FrameLayout(activity);
     list = new ListView(activity);
     list.setDivider(null);
+    list.setPadding(dp(10), dp(4), dp(10), dp(16));
+    list.setClipToPadding(false);
+    list.setSelector(android.R.color.transparent);
     list.setAdapter(adapter);
     list.setOnItemClickListener((p, v, pos, id) -> { Item it = items.get(pos); if (it.click != null) it.click.run(); });
     list.setOnItemLongClickListener((p, v, pos, id) -> { Item it = items.get(pos); if (it.longClick == null) return false; it.longClick.run(); return true; });
@@ -209,25 +212,27 @@ final class ListPanel {
     Row() {
       super(activity);
       setGravity(Gravity.CENTER_VERTICAL);
-      setMinimumHeight(dp(56));
-      setPadding(dp(14), dp(6), dp(14), dp(6));
+      setMinimumHeight(dp(70));
+      setBackground(rounded(PANEL, 18));
+      setElevation(dp(1));
+      setPadding(dp(14), dp(12), dp(14), dp(12));
       FrameLayout iconBox = new FrameLayout(activity);
       glyph.setTextColor(ACCENT);
       glyph.setTextSize(19);
       glyph.setGravity(Gravity.CENTER);
       iconBox.addView(glyph, new FrameLayout.LayoutParams(-1, -1));
       iconBox.addView(icon, new FrameLayout.LayoutParams(-1, -1));
-      LayoutParams ilp = new LayoutParams(dp(28), dp(28));
+      LayoutParams ilp = new LayoutParams(dp(34), dp(34));
       ilp.setMargins(0, 0, dp(14), 0);
       addView(iconBox, ilp);
       LinearLayout texts = new LinearLayout(activity);
       texts.setOrientation(VERTICAL);
       title.setTextColor(TEXT);
-      title.setTextSize(15);
+      title.setTextSize(16);
       title.setMaxLines(2);
       title.setEllipsize(android.text.TextUtils.TruncateAt.END);
       subtitle.setTextColor(MUTED);
-      subtitle.setTextSize(12.5f);
+      subtitle.setTextSize(13);
       subtitle.setMaxLines(2);
       subtitle.setEllipsize(android.text.TextUtils.TruncateAt.END);
       texts.addView(title);
@@ -239,6 +244,10 @@ final class ListPanel {
       trailing.setPadding(dp(10), 0, 0, 0);
       addView(trailing);
       progress.setMax(100);
+    }
+
+    @Override protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+      super.onMeasure(widthMeasureSpec, heightMeasureSpec);
     }
 
     void bind(Item it) {
