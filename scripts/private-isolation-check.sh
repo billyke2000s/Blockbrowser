@@ -68,7 +68,7 @@ wait_stored(){ # $1 = who
 }
 login(){ # $1 = normal|private, $2 = who
   if [ "$1" = normal ]; then open_normal "$SITE/login?who=$2"; else open_private "$SITE/login?who=$2"; fi
-  wait_stored "$2" && pass "Logged in as '$2' in a $1 window" || fail "Login as '$2' in a $1 window did not complete"
+  if wait_stored "$2"; then pass "Logged in as '$2' in a $1 window"; else fail "Login as '$2' in a $1 window did not complete"; diag "login-$2"; fi
 }
 # check MODE STEP EXPECTED_WHO ("" = nothing stored)
 check(){
@@ -86,7 +86,21 @@ check(){
 app_files(){ # lists the app's data and cache folders
   adb shell run-as "$PKG" ls -a /data/data/$PKG /data/data/$PKG/cache /data/data/$PKG/shared_prefs 2>&1 | tr -d '\r'
 }
+screen_text(){ python3 - "$1" <<'PYEND'
+import sys, xml.etree.ElementTree as ET
+items = []
+try:
+    for n in ET.parse(sys.argv[1]).iter("node"):
+        label = ((n.get("text") or "").strip() or (n.get("content-desc") or "").strip())
+        if label and label not in items: items.append(label[:40])
+except Exception as e:
+    items.append("(no screen dump)")
+print(" · ".join(items[:40]))
+PYEND
+}
 diag(){
+  adb shell uiautomator dump /sdcard/diag.xml >/dev/null 2>&1 && adb pull /sdcard/diag.xml "$OUT/diag-$1.xml" >/dev/null 2>&1
+  echo "  - on screen [$1]: $(screen_text "$OUT/diag-$1.xml") · processes: main=$(main_pid) private=$(private_pid)" >> "$SUMMARY"
   local crash; crash=$(adb logcat -d -b crash 2>/dev/null | grep -E "FATAL|Exception|at com\.example|Caused by" | head -15 | sed ':a;N;$!ba;s/\n/%0A/g')
   [ -n "$crash" ] && echo "::error::[$1] crash log:%0A$crash"
   echo "::notice::[$1] processes: main=$(main_pid) private=$(private_pid)"

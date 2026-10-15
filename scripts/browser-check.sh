@@ -88,9 +88,25 @@ wait_text(){ # $1 = dump name, $2 = text (contains), $3 = seconds
   for _ in $(seq 1 "${3:-15}"); do dump "$1" && has "$1" text "$2" contains && return 0; sleep 1; done; return 1; }
 step_result(){ json "d['steps'].get('$1',{}).get('ls','')"; }
 wait_step(){ wait_for "d['steps'].get('$1',{}).get('done',False)" "${2:-30}"; }
+# Lists what is on screen (texts and labels) so failures can be understood from the PR comment.
+screen_text(){ python3 - "$OUT/$1.xml" <<'PYEND'
+import sys, xml.etree.ElementTree as ET
+items = []
+try:
+    for n in ET.parse(sys.argv[1]).iter("node"):
+        t = (n.get("text") or "").strip(); d = (n.get("content-desc") or "").strip()
+        label = t or d
+        if label and label not in items: items.append(label[:40])
+except Exception as e:
+    items.append("(no screen dump: %s)" % e)
+print(" · ".join(items[:45]))
+PYEND
+}
 diag(){
   local crash; crash=$(adb logcat -d -b crash 2>/dev/null | grep -E "FATAL|Exception|at com\.example|Caused by" | head -12 | sed ':a;N;$!ba;s/\n/%0A/g')
-  [ -n "$crash" ] && echo "::error::[$1] crash log:%0A$crash"
+  [ -n "$crash" ] && { echo "::error::[$1] crash log:%0A$crash"; echo "  - crash: $(echo "$crash" | sed 's/%0A/ ⏎ /g' | head -c 600)" >> "$SUMMARY"; }
+  dump "diag-$1" >/dev/null 2>&1
+  echo "  - on screen [$1]: $(screen_text "diag-$1")" >> "$SUMMARY"
   shot "diag-$1"
 }
 dismiss_anr(){ dump anr >/dev/null 2>&1 || return 0; if grep -q "isn't responding\|isn&apos;t responding" "$OUT/anr.xml"; then tap_btn anr "Wait"; sleep 2; fi; }
@@ -125,7 +141,8 @@ reset_hits
 adb shell am start -W -n "$PKG/.MainActivity" >/dev/null
 if wait_for "d['scroll'].get('3') is not None" 40; then
   Y=$(json "d['scroll'].get('3')")
-  if [ "${Y:-0}" -gt 200 ]; then pass "After restart the selected tab (Page 3) reloaded at its scroll position (y=$Y)"; else fail "Scroll position not restored (y=$Y)"; fi
+  if [ "${Y:-0}" -gt 200 ]; then pass "After restart the selected tab (Page 3) reloaded at its scroll position (y=$Y)"
+  else fail "Scroll position not restored (y=$Y; saved session: $(adb shell run-as "$PKG" cat shared_prefs/browser.xml | grep -o 'page?n=3[^}]*' | head -1 | head -c 120))"; fi
 else fail "Selected tab did not reload after restart"; diag restore; fi
 sleep 3
 OTHERS=$(json "sorted(k for k in d['hits'] if k!='3')")
@@ -216,7 +233,7 @@ if tap c1 text "Clear browsing data"; then
     N=$(python3 -c "import sqlite3;print(sqlite3.connect('$OUT/history.db').execute('select count(*) from history where url not like \"%after-clear%\"').fetchone()[0])" 2>/dev/null)
     [ "${N:-x}" = "0" ] && pass "History cleared" || fail "History rows left after clearing: ${N:-unreadable}"
   else fail "Clear button not found"; diag c2; fi
-else fail "'Clear browsing data' not found in the menu"; diag c1; fi
+else fail "'Clear browsing data' not found in the menu"; echo "  - menu showed: $(screen_text c1)" >> "$SUMMARY"; fi
 
 # ---- 9. A page's renderer dies --------------------------------------------------------------------------------
 open_url "$SITE/page?n=7"; sleep 4

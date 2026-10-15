@@ -1358,9 +1358,11 @@ public class MainActivity extends Activity {
       tab.restoreY = null;
       if (y == null) y = tab.positions.get(view.copyBackForwardList().getCurrentIndex(), 0);
       if (y > 0) {
+        // Layout can finish after onPageFinished (slower devices, older WebView): retry until the position sticks.
         final int targetY = y;
-        view.postDelayed(() -> view.scrollTo(0, targetY), 200);
-        view.postDelayed(() -> view.scrollTo(0, targetY), 850);
+        for (int delay : new int[]{150, 600, 1200, 2000}) {
+          view.postDelayed(() -> { if (tab.web == view && Math.abs(view.getScrollY() - targetY) > 4 && view.getScrollY() < 4) view.scrollTo(0, targetY); }, delay);
+        }
       }
       if (tab == currentTab()) updateToolbar(tab);
       scheduleSessionSave();
