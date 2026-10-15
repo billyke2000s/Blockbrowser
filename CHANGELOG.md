@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Fixed
+- **Duplicate tabs**: when Android recreated the browser (after closing it in the background, or when reopened from recent apps), the link that originally opened it was opened again in an extra tab.
+- **Failed pages** were saved to history and shown in tabs as "Webpage not available".
+- **Blocking statistics** screen ran under the status bar and had no back button.
+
+### Changed (look and layout)
+- **Every pop-up now matches the app**: confirmations, choices and prompts use the dark rounded style instead of Android's plain grey box.
+- **Back in the ⋮ menu**: Search engine (with the current one shown), Ad blocking on/off, Dark websites on/off, Blocking statistics and Close tab. They had been moved into Settings, which made them look removed.
+- **Search engine list shows logos again**, fetched once from each engine's own site and cached (never from a third-party icon service, never in private windows).
+- **Header buttons have labels** ("By site", "Delete", "+ Folder", "Import / Export", "Clear") instead of bare symbols.
+- **History**: each day's Delete button sits on the day's heading instead of as a row among your pages; pages without a title show the site name (or "Video · site") instead of the whole address.
+- **Private downloads** don't show their source address in the normal Downloads screen.
+
 ### Fixed (review of the privacy-chart and polish changes)
 - **List rows had no tap feedback** after the card restyle; rows now show a ripple, and rows without an action show none.
 - **Blocking statistics weren't cleared** with browsing data, although they include the addresses of blocked pages you opened. They're now an option in Clear browsing data, and the statistics screen has Reset.

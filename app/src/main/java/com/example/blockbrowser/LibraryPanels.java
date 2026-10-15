@@ -42,15 +42,15 @@ final class LibraryPanels {
     Runnable[] load = new Runnable[1];
     load[0] = () -> {
       String q = panel.query();
-      a.background.execute(() -> {
+      a.runInBackground(() -> {
         List<HistoryStore.Entry> entries = a.history().recent(q, 1000);
         Map<String, Bitmap> icons = icons(a, entries);
         a.runOnUiThread(() -> panel.setItems(historyItems(a, entries, icons, load[0])));
       });
     };
     panel.withSearch("Search history", q -> load[0].run());
-    panel.action("▤", "History by website", () -> showHistoryBySite(a));
-    if (!a.isPrivate()) panel.action("⌫", "Delete history", () -> deleteHistoryDialog(a, load[0]));
+    panel.textAction("By site", "History by website", () -> showHistoryBySite(a));
+    if (!a.isPrivate()) panel.textAction("Delete", "Delete history", () -> deleteHistoryDialog(a, load[0]));
     panel.show();
     load[0].run();
   }
@@ -59,6 +59,22 @@ final class LibraryPanels {
     Map<String, Bitmap> icons = new HashMap<>();
     for (HistoryStore.Entry e : entries) if (!icons.containsKey(e.host)) icons.put(e.host, a.favicons().get(e.host));
     return icons;
+  }
+
+  /** Short name for a page without a title: the file name for media and files, otherwise the site. */
+  static String untitled(String url) {
+    String path = url;
+    int q = path.indexOf('?'); if (q >= 0) path = path.substring(0, q);
+    int hash = path.indexOf('#'); if (hash >= 0) path = path.substring(0, hash);
+    int slash = path.lastIndexOf('/');
+    String last = slash >= 0 && slash < path.length() - 1 ? path.substring(slash + 1) : "";
+    if (last.contains(".") && last.length() <= 60) {
+      String ext = last.substring(last.lastIndexOf('.') + 1).toLowerCase(Locale.ROOT);
+      String kind = ext.matches("mp4|webm|mkv|mov|m3u8") ? "Video" : ext.matches("jpe?g|png|gif|webp|avif") ? "Image" : ext.matches("pdf") ? "PDF" : null;
+      if (kind != null) return kind + " · " + UrlTools.host(url);
+    }
+    String host = UrlTools.host(url);
+    return host.startsWith("www.") ? host.substring(4) : host;
   }
 
   static String dayLabel(MainActivity a, long time) {
@@ -86,18 +102,14 @@ final class LibraryPanels {
     for (HistoryStore.Entry e : entries) {
       String day = dayLabel(a, e.lastVisit);
       if (!day.equals(lastDay)) {
-        ListPanel.Item header = ListPanel.Item.header(day);
         long start = startOfDay(e.lastVisit);
-        items.add(header);
-        if (!a.isPrivate()) {
-          ListPanel.Item clearDay = new ListPanel.Item("⌫", "Delete " + (day.equals("Today") || day.equals("Yesterday") ? day.toLowerCase(Locale.ROOT) + "'s" : "this day's") + " history", null, () ->
-              confirm(a, "Delete history from " + day + "?", "Delete", () -> a.history().deleteRange(start, start + DateUtils.DAY_IN_MILLIS, n -> done(a, n, reload))));
-          items.add(clearDay);
-        }
+        // "Today ……… Delete": the day's delete action sits on its heading, not as a row among your pages.
+        items.add(a.isPrivate() ? ListPanel.Item.header(day) : ListPanel.Item.header(day, "Delete", () ->
+            confirm(a, "Delete history from " + day + "?", "Delete", () -> a.history().deleteRange(start, start + DateUtils.DAY_IN_MILLIS, n -> done(a, n, reload)))));
         lastDay = day;
       }
       ListPanel.Item it = new ListPanel.Item();
-      it.title = e.title == null || e.title.isEmpty() ? UrlTools.display(e.url) : e.title;
+      it.title = e.title == null || e.title.isEmpty() ? untitled(e.url) : e.title;
       it.subtitle = DateFormat.getTimeFormat(a).format(new java.util.Date(e.lastVisit)) + " · " + UrlTools.display(e.url);
       it.icon = icons.get(e.host);
       it.glyph = "◷";
@@ -122,7 +134,7 @@ final class LibraryPanels {
     ListPanel panel = new ListPanel(a, "History by website");
     panel.setEmptyText("No history yet.");
     Runnable[] load = new Runnable[1];
-    load[0] = () -> a.background.execute(() -> {
+    load[0] = () -> a.runInBackground(() -> {
       List<HistoryStore.Entry> entries = a.history().recent(panel.query(), HistoryStore.MAX_ENTRIES);
       LinkedHashMap<String, Integer> counts = new LinkedHashMap<>();
       for (HistoryStore.Entry e : entries) counts.put(e.host, counts.containsKey(e.host) ? counts.get(e.host) + 1 : 1);
@@ -149,12 +161,12 @@ final class LibraryPanels {
   static void showSiteHistory(MainActivity a, String host, Runnable after) {
     ListPanel panel = new ListPanel(a, host);
     Runnable[] load = new Runnable[1];
-    load[0] = () -> a.background.execute(() -> {
+    load[0] = () -> a.runInBackground(() -> {
       List<HistoryStore.Entry> entries = a.history().forHost(host, 2000);
       Map<String, Bitmap> icons = icons(a, entries);
       a.runOnUiThread(() -> panel.setItems(historyItems(a, entries, icons, load[0])));
     });
-    if (!a.isPrivate()) panel.action("⌫", "Delete all history from this site", () -> confirm(a, "Delete all history from " + host + "?", "Delete",
+    if (!a.isPrivate()) panel.textAction("Delete all", "Delete all history from this site", () -> confirm(a, "Delete all history from " + host + "?", "Delete",
         () -> a.history().deleteHost(host, n -> { done(a, n, after); a.runOnUiThread(panel::dismiss); })));
     panel.show();
     load[0].run();
@@ -231,15 +243,15 @@ final class LibraryPanels {
         it.longClick = () -> bookmarkActions(a, b, load[0]);
         items.add(it);
       }
-      panel.setEmptyText(q.isEmpty() ? (folder[0].isEmpty() ? "No bookmarks yet.\n\nUse ☆ in the ⋮ menu to bookmark a page." : "This folder is empty.") : "No matching bookmarks.");
+      panel.setEmptyText(q.isEmpty() ? (folder[0].isEmpty() ? "No bookmarks yet.\n\nUse ☆ at the top of the ⋮ menu to bookmark a page." : "This folder is empty.") : "No matching bookmarks.");
       panel.setItems(items);
     };
     panel.withSearch("Search bookmarks", q -> load[0].run());
-    if (!a.isPrivate()) panel.action("+", "New folder", () -> textPrompt(a, "New folder", "Folder name", "", name -> {
+    if (!a.isPrivate()) panel.textAction("+ Folder", "New folder", () -> textPrompt(a, "New folder", "Folder name", "", name -> {
       String path = BookmarkIO.cleanFolder((folder[0].isEmpty() ? "" : folder[0] + "/") + name.replace('/', '-'));
       if (!path.isEmpty()) { a.bookmarks().createFolder(path); load[0].run(); }
     }));
-    panel.action("⇅", "Import or export bookmarks", () -> importExportMenu(a, load[0]));
+    panel.textAction("Import / Export", "Import or export bookmarks", () -> importExportMenu(a, load[0]));
     panel.show();
     load[0].run();
   }
@@ -406,7 +418,7 @@ final class LibraryPanels {
     boolean started = a.startForResult(intent, (result, data) -> {
       if (result != android.app.Activity.RESULT_OK || data == null || data.getData() == null) return;
       Uri target = data.getData();
-      a.background.execute(() -> {
+      a.runInBackground(() -> {
         try (OutputStream out = a.getContentResolver().openOutputStream(target, "wt")) {
           if (out == null) throw new IllegalStateException("cannot write");
           out.write(content.get().getBytes(StandardCharsets.UTF_8));
@@ -427,7 +439,7 @@ final class LibraryPanels {
     boolean started = a.startForResult(intent, (result, data) -> {
       if (result != android.app.Activity.RESULT_OK || data == null || data.getData() == null) return;
       Uri source = data.getData();
-      a.background.execute(() -> {
+      a.runInBackground(() -> {
         String text;
         try (InputStream in = a.getContentResolver().openInputStream(source)) {
           if (in == null) throw new IllegalStateException("cannot read");
@@ -491,7 +503,7 @@ final class LibraryPanels {
       } catch (Exception ignored) {}
       panel.setItems(items);
     };
-    panel.action("⌫", "Clear list", () -> confirm(a, "Clear recently closed tabs?", "Clear", () -> {
+    panel.textAction("Clear", "Clear list", () -> confirm(a, "Clear recently closed tabs?", "Clear", () -> {
       a.prefs.edit().remove("closed_tabs").remove("recently_closed_url").apply();
       load[0].run();
     }));

@@ -40,6 +40,7 @@ final class Downloads {
   private Downloads() {}
 
   static final long MAX_DATA_URL_BYTES = 50L * 1024 * 1024;
+  static final String PRIVATE_LABEL = "Private download";
 
   /** Starts a download from a page link or a site's download response. */
   static void start(MainActivity a, String url, String userAgent, String disposition, String mime, String referer) {
@@ -89,7 +90,8 @@ final class Downloads {
       if (cookies != null) req.addRequestHeader("Cookie", cookies);
       if (UrlTools.isWebUrl(referer) && !(referer.startsWith("https://") && url.startsWith("http://"))) req.addRequestHeader("Referer", referer);
       req.setTitle(name);
-      req.setDescription(UrlTools.host(url));
+      // Private downloads are labelled so the normal Downloads screen doesn't show where they came from.
+      req.setDescription(a.isPrivate() ? PRIVATE_LABEL : UrlTools.host(url));
       req.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
       req.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, name);
       ((DownloadManager) a.getSystemService(Context.DOWNLOAD_SERVICE)).enqueue(req);
@@ -108,7 +110,7 @@ final class Downloads {
     String mime = (base64 ? meta.substring(0, meta.length() - 7) : meta).split(";")[0];
     if (mime.isEmpty()) mime = givenMime == null ? "application/octet-stream" : givenMime;
     final String type = mime;
-    a.background.execute(() -> {
+    a.runInBackground(() -> {
       try {
         String payload = url.substring(comma + 1);
         byte[] bytes = base64 ? Base64.decode(payload, Base64.DEFAULT) : Uri.decode(payload).getBytes("UTF-8");
@@ -145,7 +147,8 @@ final class Downloads {
   // ---------------------------------------------------------------------------------------------------
 
   static final class Row {
-    long id; String title, uri, mime; int status, reason; long done, total, modified;
+    long id; String title, uri, mime, description; int status, reason; long done, total, modified;
+    boolean isPrivate() { return PRIVATE_LABEL.equals(description); }
   }
 
   static List<Row> query(DownloadManager dm) {
@@ -157,6 +160,7 @@ final class Downloads {
         r.id = c.getLong(c.getColumnIndexOrThrow(DownloadManager.COLUMN_ID));
         r.title = c.getString(c.getColumnIndexOrThrow(DownloadManager.COLUMN_TITLE));
         r.uri = c.getString(c.getColumnIndexOrThrow(DownloadManager.COLUMN_URI));
+        r.description = c.getString(c.getColumnIndexOrThrow(DownloadManager.COLUMN_DESCRIPTION));
         r.mime = c.getString(c.getColumnIndexOrThrow(DownloadManager.COLUMN_MEDIA_TYPE));
         r.status = c.getInt(c.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS));
         r.reason = c.getInt(c.getColumnIndexOrThrow(DownloadManager.COLUMN_REASON));
@@ -233,12 +237,12 @@ final class Downloads {
             it.subtitle = "Failed — " + failureReason(r.reason) + ". Tap to retry.";
             break;
           default:
-            it.subtitle = Formatter.formatShortFileSize(a, r.total > 0 ? r.total : r.done) + " · " + UrlTools.host(r.uri)
-                + " · " + DateUtils.getRelativeTimeSpanString(r.modified, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS);
+            it.subtitle = Formatter.formatShortFileSize(a, r.total > 0 ? r.total : r.done)
+                + " · " + (r.isPrivate() ? "private window" : UrlTools.host(r.uri)) + " · " + DateUtils.getRelativeTimeSpanString(r.modified, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS);
         }
         it.click = () -> {
           if (r.status == DownloadManager.STATUS_SUCCESSFUL) open(a, dm, r, false);
-          else if (r.status == DownloadManager.STATUS_FAILED) retry(a, dm, r);
+          else if (r.status == DownloadManager.STATUS_FAILED && !(r.isPrivate() && !a.isPrivate())) retry(a, dm, r);
           else actions(a, dm, r, refresh[0]);
         };
         it.longClick = () -> actions(a, dm, r, refresh[0]);
@@ -271,8 +275,10 @@ final class Downloads {
       }
       labels.add("Share file"); acts.add(() -> share(a, dm, r));
     }
-    if (r.status == DownloadManager.STATUS_FAILED) { labels.add("Retry"); acts.add(() -> retry(a, dm, r)); }
-    if (UrlTools.isWebUrl(r.uri)) { labels.add("Copy download link"); acts.add(() -> a.copyText("Download link", r.uri)); }
+    // A private download's address is never shown, copied or retried from a normal window.
+    boolean hideSource = r.isPrivate() && !a.isPrivate();
+    if (r.status == DownloadManager.STATUS_FAILED && !hideSource) { labels.add("Retry"); acts.add(() -> retry(a, dm, r)); }
+    if (UrlTools.isWebUrl(r.uri) && !hideSource) { labels.add("Copy download link"); acts.add(() -> a.copyText("Download link", r.uri)); }
     if (done || r.status == DownloadManager.STATUS_FAILED) {
       labels.add("Delete"); acts.add(() -> new AlertDialog.Builder(a).setTitle("Delete " + r.title + "?")
           .setMessage(done ? "The file is removed from your phone." : "The download is removed from the list.")

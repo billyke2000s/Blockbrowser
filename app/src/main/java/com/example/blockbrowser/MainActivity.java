@@ -109,6 +109,11 @@ public class MainActivity extends Activity {
   final Handler handler = new Handler(Looper.getMainLooper());        // full-screen control fade only
   final Handler sessionHandler = new Handler(Looper.getMainLooper()); // saving, undo, cleanup
   final ExecutorService background = Executors.newFixedThreadPool(2, r -> new Thread(r, "browser-bg"));
+
+  /** Runs work off the UI thread; silently skipped once the window has closed (the executor is shut down then). */
+  void runInBackground(Runnable r) {
+    try { background.execute(r); } catch (java.util.concurrent.RejectedExecutionException ignored) {}
+  }
   Runnable fadeTask, sessionSave, snackbarHide;
   boolean fullscreen = false, fullscreenBeforeVideo = false, immersiveRequested = false, restoringSession = false;
   View customView;
@@ -315,7 +320,11 @@ public class MainActivity extends Activity {
     applyProfileStyle();
     restoreSession();
     if (immersiveRequested) setFullscreen(true);
-    handleExternalIntent(getIntent());
+    // Only a fresh launch carries a new link. When Android recreates the window (after closing the app in the
+    // background, or reopening it from recent apps) it hands back the original intent, and opening that link
+    // again would add a duplicate tab: the restored session already has it.
+    boolean fromHistory = (getIntent().getFlags() & Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) != 0;
+    if (b == null && !fromHistory) handleExternalIntent(getIntent());
   }
 
   void buildUi() {
@@ -1323,6 +1332,11 @@ public class MainActivity extends Activity {
         case ERROR_UNSAFE_RESOURCE: title = "Dangerous site blocked"; message = "Google Safe Browsing reported this site as unsafe."; break;
         default: return; // cancelled navigations and similar: nothing to show
       }
+      // Mark the failure now, before WebView's own "Webpage not available" title arrives, and drop the failed
+      // address from history (a page that never loaded isn't a visit).
+      tab.errorUrl = url;
+      tab.title = title;
+      history().forgetFailedVisit(url);
       showErrorPage(tab, url, title, message + "\n\n(" + error.getDescription() + ")");
     }
 
@@ -1372,6 +1386,7 @@ public class MainActivity extends Activity {
 
     @Override public void doUpdateVisitedHistory(WebView view, String url, boolean isReload) {
       if (!UrlTools.isWebUrl(url)) return;
+      if (url.equals(tab.errorUrl)) return; // our error page for a failed address, not a visit
       tab.url = url;
       if (!isReload) saveVisit(url, view.getTitle());
       if (tab == currentTab()) setAddressText(url);
@@ -1420,6 +1435,7 @@ public class MainActivity extends Activity {
     runOnUiThread(() -> {
       if (tab.web == null) return;
       tab.errorUrl = failingUrl;
+      tab.title = title;
       tab.loading = false;
       String safeUrl = android.text.TextUtils.htmlEncode(failingUrl == null ? "" : failingUrl);
       String html = "<!doctype html><html><head><meta name=viewport content='width=device-width,initial-scale=1'><style>"
@@ -1814,6 +1830,7 @@ public class MainActivity extends Activity {
     e.add(new MenuEntry("◷", "History", () -> LibraryPanels.showHistory(this)));
     e.add(new MenuEntry("⇩", "Downloads", () -> Downloads.showPanel(this)));
     e.add(new MenuEntry("⛶", immersiveRequested ? "Exit full screen" : "Full screen", () -> setFullscreen(!immersiveRequested)));
+    e.add(new MenuEntry("×", "Close tab", this::closeCurrentTab));
     if (!isPrivate()) e.add(new MenuEntry("↶", "Recently closed tabs", () -> LibraryPanels.showRecentlyClosed(this)));
     MenuEntry find = new MenuEntry("⌕", "Find in page", this::showFind);
     find.separatorBefore = true;
@@ -1826,6 +1843,21 @@ public class MainActivity extends Activity {
     e.add(new MenuEntry("↓", "Download video", this::videoDownload));
     e.add(new MenuEntry("▤", "Print / Save PDF", this::printPage));
     if (!isPrivate()) e.add(new MenuEntry("⌂", "Add to home screen", this::addToHomeScreen));
+    // Everyday settings straight from the menu, as in earlier versions (also in Settings and Privacy and security).
+    MenuEntry engineEntry = new MenuEntry("⌕", "Search engine: " + ENGINE_NAMES[engine()], () -> searchEngineMenu(null));
+    engineEntry.separatorBefore = true;
+    e.add(engineEntry);
+    e.add(new MenuEntry("⛨", "Ad blocking: " + (blockAds ? "On" : "Off"), () -> {
+      setAdblock(!blockAds);
+      toast(blockAds ? "Ad blocking on" : "Ad blocking off");
+      Tab cur = currentTab();
+      if (cur != null) reloadTab(cur);
+    }));
+    e.add(new MenuEntry("◔", "Blocking statistics", () -> PrivacyChart.show(this)));
+    if (darkeningSupported()) {
+      boolean dark = prefs.getBoolean("dark", false);
+      e.add(new MenuEntry("◐", "Dark websites: " + (dark ? "On" : "Off"), () -> setDarkWebsites(!dark)));
+    }
     MenuEntry settings = new MenuEntry("⚙", "Settings", () -> SettingsPanels.showSettings(this));
     settings.separatorBefore = true;
     e.add(settings);
@@ -1980,27 +2012,93 @@ public class MainActivity extends Activity {
   // Settings actions (used by SettingsPanels)
   // =====================================================================================================
 
+  /** Each engine's own site, used to show its logo in the chooser. */
+  static final String[] ENGINE_SITES = {"www.google.com", "www.bing.com", "duckduckgo.com", "search.brave.com", "www.startpage.com", "www.ecosia.org", "search.yahoo.com", "www.qwant.com", "www.mojeek.com", "searx.be"};
+  static final int[] ENGINE_COLORS = {0xff4285f4, 0xff00809d, 0xffde5833, 0xfffb542b, 0xff6573ff, 0xff36acb8, 0xff6001d2, 0xff5c97ff, 0xff7ab93c, 0xff3050ff};
+
+  /**
+   * Search engine chooser: every engine with its logo, the current one ticked. Logos come from the icon cache
+   * (saved when you visit the engine) or, in normal windows, are fetched once from the engine's own site and
+   * cached. Nothing is sent to a third party, and private windows never fetch.
+   */
   void searchEngineMenu(Runnable after) {
-    ListPanel panel = new ListPanel(this, "Choose search engine");
-    java.util.List<ListPanel.Item> choices = new java.util.ArrayList<>();
+    ListPanel panel = new ListPanel(this, "Search engine");
     String[] details = {
-      "Google Search", "Microsoft search", "Privacy-focused search", "Independent private search",
-      "Private search results", "Search that plants trees", "Yahoo search", "Privacy-focused search",
-      "Independent search index", "Community-hosted metasearch"
+      "google.com", "bing.com", "duckduckgo.com · private search", "search.brave.com · independent index",
+      "startpage.com · Google results, privately", "ecosia.org · plants trees", "search.yahoo.com", "qwant.com · private search",
+      "mojeek.com · independent index", "searx.be · community metasearch"
     };
-    String[] glyphs = {"G", "B", "D", "♜", "S", "E", "Y", "Q", "M", "S"};
-    for (int i = 0; i < ENGINE_NAMES.length; i++) {
-      final int selected = i;
-      ListPanel.Item item = new ListPanel.Item(glyphs[i], ENGINE_NAMES[i], details[i], () -> {
-        prefs.edit().putInt("search_engine", selected).apply();
-        panel.dismiss();
-        if (after != null) after.run();
-      });
-      if (i == engine()) item.trailing = "✓ Selected";
-      choices.add(item);
-    }
-    panel.setItems(choices);
+    Bitmap[] logos = new Bitmap[ENGINE_NAMES.length];
+    Runnable[] render = new Runnable[1];
+    render[0] = () -> {
+      java.util.List<ListPanel.Item> choices = new java.util.ArrayList<>();
+      int currentEngine = engine();
+      for (int i = 0; i < ENGINE_NAMES.length; i++) {
+        final int selected = i;
+        ListPanel.Item item = new ListPanel.Item(ENGINE_NAMES[i].substring(0, 1), ENGINE_NAMES[i], details[i], () -> {
+          prefs.edit().putInt("search_engine", selected).commit();
+          toast("Search engine: " + ENGINE_NAMES[selected]);
+          panel.dismiss();
+          if (after != null) after.run();
+        });
+        item.icon = logos[i] != null ? logos[i] : letterBadge(ENGINE_NAMES[i].substring(0, 1), ENGINE_COLORS[i]);
+        if (i == currentEngine) { item.trailing = "✓"; item.description = ENGINE_NAMES[i] + ", selected"; }
+        choices.add(item);
+      }
+      panel.setItems(choices);
+    };
+    render[0].run();
     panel.show();
+    runInBackground(() -> {
+      boolean changed = false;
+      for (int i = 0; i < ENGINE_SITES.length; i++) {
+        Bitmap b = favicons().get(ENGINE_SITES[i]);
+        if (b == null && !isPrivate()) {
+          b = fetchIcon(ENGINE_SITES[i]);
+          if (b != null) favicons().put(ENGINE_SITES[i], b);
+        }
+        if (b != null) { logos[i] = b; changed = true; }
+      }
+      if (changed) runOnUiThread(() -> { if (panel.isShowing()) render[0].run(); });
+    });
+  }
+
+  /** Downloads a site's own icon (no third-party icon service). Returns null on any failure. */
+  static Bitmap fetchIcon(String site) {
+    for (String path : new String[]{"/apple-touch-icon.png", "/favicon.ico"}) {
+      java.net.HttpURLConnection c = null;
+      try {
+        c = (java.net.HttpURLConnection) new java.net.URL("https://" + site + path).openConnection();
+        c.setConnectTimeout(4000);
+        c.setReadTimeout(4000);
+        c.setInstanceFollowRedirects(true);
+        if (c.getResponseCode() != 200) continue;
+        try (java.io.InputStream in = c.getInputStream()) {
+          Bitmap b = android.graphics.BitmapFactory.decodeStream(in);
+          if (b != null && b.getWidth() >= 16) return b;
+        }
+      } catch (Exception ignored) {
+      } finally {
+        if (c != null) c.disconnect();
+      }
+    }
+    return null;
+  }
+
+  /** Round coloured badge with a letter, shown until (or instead of) a real logo. */
+  Bitmap letterBadge(String letter, int color) {
+    int size = dp(34);
+    Bitmap b = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
+    Canvas c = new Canvas(b);
+    android.graphics.Paint p = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+    p.setColor(color);
+    c.drawCircle(size / 2f, size / 2f, size / 2f, p);
+    p.setColor(Color.WHITE);
+    p.setTextSize(size * 0.5f);
+    p.setTypeface(Typeface.DEFAULT_BOLD);
+    p.setTextAlign(android.graphics.Paint.Align.CENTER);
+    c.drawText(letter, size / 2f, size / 2f - (p.descent() + p.ascent()) / 2f, p);
+    return b;
   }
 
   void textZoomMenu(Runnable after) {
@@ -2065,7 +2163,7 @@ public class MainActivity extends Activity {
     final Runnable[] show = new Runnable[1];
     show[0] = () -> {
       AlertDialog.Builder b = new AlertDialog.Builder(this)
-          .setTitle(isPrivate() ? "Clear this private window's data" : "Clear history from: " + ranges[range[0]].toLowerCase(Locale.ROOT))
+          .setTitle(isPrivate() ? "Clear this private window's data" : "Clear browsing data")
           .setMultiChoiceItems(labels.toArray(new String[0]), checked, (d, i, on) -> checked[i] = on)
           .setPositiveButton("Clear", (d, n) -> {
             long now = System.currentTimeMillis();
@@ -2094,7 +2192,7 @@ public class MainActivity extends Activity {
             toast("Browsing data cleared");
           })
           .setNegativeButton("Cancel", null);
-      if (!isPrivate()) b.setNeutralButton("Time range", (d, n) ->
+      if (!isPrivate()) b.setNeutralButton("History: " + ranges[range[0]].toLowerCase(Locale.ROOT), (d, n) ->
           new AlertDialog.Builder(this).setTitle("Delete history from (cookies, site data and cache are always cleared completely)")
               .setSingleChoiceItems(ranges, range[0], (dd, which) -> { range[0] = which; dd.dismiss(); show[0].run(); }).show());
       b.show();
