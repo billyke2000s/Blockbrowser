@@ -1328,6 +1328,11 @@ public class MainActivity extends Activity {
         case ERROR_UNSAFE_RESOURCE: title = "Dangerous site blocked"; message = "Google Safe Browsing reported this site as unsafe."; break;
         default: return; // cancelled navigations and similar: nothing to show
       }
+      // Mark the failure now, before WebView's own "Webpage not available" title arrives, and drop the failed
+      // address from history (a page that never loaded isn't a visit).
+      tab.errorUrl = url;
+      tab.title = title;
+      history().forgetFailedVisit(url);
       showErrorPage(tab, url, title, message + "\n\n(" + error.getDescription() + ")");
     }
 
@@ -1377,6 +1382,7 @@ public class MainActivity extends Activity {
 
     @Override public void doUpdateVisitedHistory(WebView view, String url, boolean isReload) {
       if (!UrlTools.isWebUrl(url)) return;
+      if (url.equals(tab.errorUrl)) return; // our error page for a failed address, not a visit
       tab.url = url;
       if (!isReload) saveVisit(url, view.getTitle());
       if (tab == currentTab()) setAddressText(url);
@@ -1425,6 +1431,7 @@ public class MainActivity extends Activity {
     runOnUiThread(() -> {
       if (tab.web == null) return;
       tab.errorUrl = failingUrl;
+      tab.title = title;
       tab.loading = false;
       String safeUrl = android.text.TextUtils.htmlEncode(failingUrl == null ? "" : failingUrl);
       String html = "<!doctype html><html><head><meta name=viewport content='width=device-width,initial-scale=1'><style>"
@@ -2152,7 +2159,7 @@ public class MainActivity extends Activity {
     final Runnable[] show = new Runnable[1];
     show[0] = () -> {
       AlertDialog.Builder b = new AlertDialog.Builder(this)
-          .setTitle(isPrivate() ? "Clear this private window's data" : "Clear history from: " + ranges[range[0]].toLowerCase(Locale.ROOT))
+          .setTitle(isPrivate() ? "Clear this private window's data" : "Clear browsing data")
           .setMultiChoiceItems(labels.toArray(new String[0]), checked, (d, i, on) -> checked[i] = on)
           .setPositiveButton("Clear", (d, n) -> {
             long now = System.currentTimeMillis();
@@ -2181,7 +2188,7 @@ public class MainActivity extends Activity {
             toast("Browsing data cleared");
           })
           .setNegativeButton("Cancel", null);
-      if (!isPrivate()) b.setNeutralButton("Time range", (d, n) ->
+      if (!isPrivate()) b.setNeutralButton("History: " + ranges[range[0]].toLowerCase(Locale.ROOT), (d, n) ->
           new AlertDialog.Builder(this).setTitle("Delete history from (cookies, site data and cache are always cleared completely)")
               .setSingleChoiceItems(ranges, range[0], (dd, which) -> { range[0] = which; dd.dismiss(); show[0].run(); }).show());
       b.show();

@@ -28,11 +28,25 @@ final class PrivacyChart {
     Dialog dialog = new Dialog(a, android.R.style.Theme_DeviceDefault_NoActionBar);
     LinearLayout root = new LinearLayout(a);
     root.setOrientation(LinearLayout.VERTICAL);
-    root.setPadding(a.dp(20), a.dp(24), a.dp(20), a.dp(16));
+    root.setPadding(a.dp(20), 0, a.dp(20), a.dp(16));
     root.setBackgroundColor(ListPanel.SURFACE);
-    TextView heading = text(a, "Blocking statistics", 24, ListPanel.TEXT);
-    root.addView(heading);
-    TextView note = text(a, a.blockingStats == null ? "Private session · not saved" : "On-device statistics · no URLs stored", 13, ListPanel.MUTED);
+    // Same header as the other screens: ← and a bold title, below the status bar.
+    LinearLayout header = new LinearLayout(a);
+    header.setGravity(Gravity.CENTER_VERTICAL);
+    header.setPadding(0, a.dp(12), 0, a.dp(4));
+    TextView back = text(a, "←", 21, ListPanel.TEXT);
+    back.setGravity(Gravity.CENTER);
+    back.setMinWidth(a.dp(48));
+    back.setMinHeight(a.dp(48));
+    back.setContentDescription("Back");
+    back.setOnClickListener(v -> dialog.dismiss());
+    header.addView(back);
+    TextView heading = text(a, "Blocking statistics", 22, ListPanel.TEXT);
+    heading.setTypeface(null, android.graphics.Typeface.BOLD);
+    header.addView(heading);
+    root.addView(header);
+    TextView note = text(a, a.blockingStats == null ? "Private window · nothing is saved" : "Kept on this device · site names only, never full addresses", 13, ListPanel.MUTED);
+    note.setPadding(a.dp(4), 0, 0, 0);
     root.addView(note);
     if (a.blockingStats != null) a.blockingStats.flush();
     long total = a.blockingStats == null ? a.blockedCount.get() : a.blockingStats.total();
@@ -125,6 +139,8 @@ final class PrivacyChart {
     root.addView(buttons);
     ScrollView scroll=new ScrollView(a);
     scroll.setFillViewport(true);
+    scroll.setFitsSystemWindows(true);   // keep the content clear of the status and navigation bars
+    scroll.setBackgroundColor(ListPanel.SURFACE);
     scroll.addView(root);
     dialog.setContentView(scroll);
     Window w=dialog.getWindow();

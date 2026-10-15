@@ -191,6 +191,17 @@ final class HistoryStore extends SQLiteOpenHelper {
   }
 
   void deleteUrl(String url, java.util.function.IntConsumer done) { delete("url=?", new String[]{url}, done); }
+  /** A page failed to load: remove it if this was its only visit; earlier successful visits stay. */
+  void forgetFailedVisit(String url) {
+    if (readOnly || !UrlTools.isWebUrl(url)) return;
+    writer.execute(() -> {
+      try {
+        SQLiteDatabase db = getWritableDatabase();
+        if (db.delete("history", "url=? AND visits<=1", new String[]{url}) == 0)
+          db.execSQL("UPDATE history SET visits=visits-1 WHERE url=? AND visits>1", new Object[]{url});
+      } catch (Exception e) { Log.w(TAG, "could not forget failed visit", e); }
+    });
+  }
   void deleteHost(String host, java.util.function.IntConsumer done) { delete("host=?", new String[]{host}, done); }
   /** Deletes visits whose last visit is in [from, to). */
   void deleteRange(long from, long to, java.util.function.IntConsumer done) {
