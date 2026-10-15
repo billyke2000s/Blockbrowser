@@ -20,7 +20,7 @@ RESULTS="$OUT/results.json"
 SITE="http://localhost:$PORT"
 mkdir -p "$OUT"
 FAILED=0
-SUMMARY="${GITHUB_STEP_SUMMARY:-$OUT/summary.md}"
+SUMMARY="$OUT/summary.md"; : > "$SUMMARY"
 PASSED=0
 # GitHub shows only 10 notices per step, so passes go to the run summary page; failures stay as errors.
 fail(){ echo "::error::$*"; echo "- ❌ $*" >> "$SUMMARY"; FAILED=1; }
@@ -157,7 +157,7 @@ else fail "Normal history did not record normal pages (test cannot prove private
 { echo; echo "<details><summary>App folders after force-stop, then after the main process started</summary>"; echo; echo '```'
   cat "$OUT/files-after-force-stop.txt"; echo "--- after main process start ---"; cat "$OUT/files-after-main-start.txt"; echo '```'; echo "</details>"; } >> "$SUMMARY"
 echo "Results:"; cat "$RESULTS"
-PRIVATE_FILES=$(grep -i incognito "$OUT/files-after-force-stop.txt" | sort -u | tr '\n' ' ')
-if [ "$FAILED" -eq 0 ]; then echo "::notice::Private isolation: all $PASSED checks passed on API $API.%0A$(grep '✅' "$SUMMARY" | sed 's/^- ✅ //' | sed ':a;N;$!ba;s/\n/%0A/g')%0APrivate entries on disk after force-stop (then deleted): ${PRIVATE_FILES:-none}"
-else echo "::error::Private isolation: failures on API $API (see errors above and the run summary page)"; fi
+[ -n "${GITHUB_STEP_SUMMARY:-}" ] && cat "$SUMMARY" >> "$GITHUB_STEP_SUMMARY"
+if [ "$FAILED" -eq 0 ]; then echo "::notice::Private isolation: all $PASSED checks passed on API $API"
+else echo "::error::Private isolation: failures on API $API (see errors above)"; fi
 exit $FAILED

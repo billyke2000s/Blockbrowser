@@ -120,3 +120,36 @@ jobs:
           name: private-isolation-api-${{ matrix.api-level }}
           path: isolation-output/
           if-no-files-found: warn
+
+  # Posts every Android version's isolation results as one PR comment, updated on each run.
+  isolation-report:
+    needs: private-isolation
+    if: always() && github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Download results
+        uses: actions/download-artifact@v4
+        with:
+          pattern: private-isolation-api-*
+          path: results
+      - name: Post or update PR comment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          MARKER='<!-- private-isolation-report -->'
+          {
+            echo "$MARKER"
+            echo "## Private browsing isolation results"
+            echo "Commit ${{ github.event.pull_request.head.sha }} · [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+            echo
+            found=0
+            for f in results/*/summary.md; do [ -f "$f" ] || continue; found=1; cat "$f"; echo; done
+            [ "$found" = 1 ] || echo "No results were produced. Check the private-isolation jobs."
+          } > comment.md
+          ID=$(gh api "repos/$REPO/issues/$PR/comments?per_page=100" --jq "[.[]|select(.body|startswith(\"$MARKER\"))][0].id // empty")
+          if [ -n "$ID" ]; then gh api -X PATCH "repos/$REPO/issues/comments/$ID" -F body=@comment.md >/dev/null
+          else gh api "repos/$REPO/issues/$PR/comments" -F body=@comment.md >/dev/null; fi
