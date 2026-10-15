@@ -6,6 +6,7 @@
 |---|---|---|
 | APK compiles | `.github/workflows/android.yml` | Every push to `main` and every pull request |
 | UI check on emulator | `.github/workflows/ui-check.yml` → `scripts/ui-check.sh` | Every pull request, or manually: Actions → *UI check on emulator* → Run workflow |
+| Private browsing isolation | `.github/workflows/ui-check.yml` (job `private-isolation`) → `scripts/private-isolation-check.sh` | Same as the UI check |
 
 The UI check builds the APK and runs it on Android 10 (API 29) and Android 15 (API 35) emulators. It checks that:
 1. The address bar starts below the status bar.
@@ -18,6 +19,21 @@ Notes:
 - The test finds the address bar by its accessibility label `Address bar`. Keep that label if the toolbar changes.
 - If the screen dump doesn't include the system status bar, the test uses the status bar height the app logs under the `BlockBrowserInsets` log tag.
 - On Android 15 the emulator shows a one-time "Viewing full screen" tip; the test dismisses it.
+
+## Private browsing isolation
+
+Runs on Android 9 (API 28), 14 (API 34) and 15 (API 35) emulators. It uses the test-only `uitest` build variant (`gradle :app:assembleUitest`), which differs from the published debug APK only in:
+- allowing plain HTTP to `localhost`, for the local test site;
+- letting `adb` open a private window directly.
+
+`scripts/isolation-server.py` is a small local website, reached from the emulator through `adb reverse`. Its `/login` page sets a persistent cookie, localStorage and IndexedDB; its `/check` pages report back what the browser sent. The script checks that:
+1. Normal and private windows never see each other's cookie, localStorage or IndexedDB, and private windows run in their own process.
+2. A private login survives while the private window is open.
+3. Closing the last private window ends the private process and deletes private files from disk; a new private window starts empty.
+4. Killing the private process (simulated crash) and force-stopping the app leave nothing behind, and normal logins survive.
+5. No private URL appears in normal history or the saved session.
+
+All results are listed in one notice per Android version on the workflow run, and on the run's summary page.
 
 ## Not covered automatically
 Check these by hand on a phone after changes in those areas:

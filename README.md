@@ -43,6 +43,19 @@ Block Browser is a lightweight Android web browser with built-in ad and tracker 
 
 **Go fullscreen:** Open **⋮ → Full screen**. The floating fullscreen control fades after three seconds. Tap its original location to show it again, then tap it to exit; Android's Back action also exits fullscreen.
 
+## Private browsing
+
+**⋮ → New private window** (Android 9 or newer) opens a window marked **Private**. It runs in a separate app process with its own cookies, site storage, cache and service workers, so sites can't see your normal logins and normal windows can't see private ones.
+
+- Nothing from a private window is saved to history, the session, recently closed tabs or search suggestions.
+- It starts with your normal settings. Settings changed inside it apply only until it closes.
+- Your bookmarks and history are available for suggestions, but can't be changed from a private window.
+- Android Autofill is off, and the keyboard is asked not to learn what you type (your keyboard app decides whether to honour that).
+- Private pages are hidden from the recent-apps preview. On Android 12 and older this also blocks screenshots in private windows.
+- When the last private window closes, its cookies and site data are deleted and its process ends. If the app crashes or is force-stopped, leftovers are deleted before they can be used again.
+
+**Limits:** downloads from a private window are saved to your Downloads folder and appear in Android's download list and notifications like any other download. Private browsing hides your activity from this app and other people using the phone, not from websites, your network or your internet provider.
+
 ## Built for a cleaner web
 
 Block Browser checks web requests against its domain blocklist before allowing them through. This helps reduce unwanted advertising, tracking and malicious connections while browsing inside the app.

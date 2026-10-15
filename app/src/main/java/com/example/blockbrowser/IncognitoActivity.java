@@ -108,6 +108,7 @@ public class IncognitoActivity extends MainActivity {
   }
 
   @Override void openPrivateWindow() { newTab(homeUrl()); }
+  @Override void schedulePrivateCleanup() {} // never clean the profile this window is using
 
   @Override void saveSession() {}
   @Override void scheduleSessionSave() {}

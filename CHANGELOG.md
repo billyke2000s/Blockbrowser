@@ -3,11 +3,18 @@
 ## Unreleased
 
 ### Added
+- **Private browsing indicator:** private windows show a **Private** badge and a different colour, and are hidden from the recent-apps preview. Android Autofill and keyboard learning are off there.
+- **Private isolation test** (`scripts/private-isolation-check.sh`) on Android 9, 14 and 15 emulators: logs in to a local test site in normal and private windows and checks cookies, localStorage and IndexedDB are never shared and are deleted after closing, a crash or a force-stop.
 - **Refreshed browser UI:** modern dark surfaces, rounded toolbar controls, improved address-bar spacing and clearer tab selection.\n- **Search engine picker:** choose among Google, Bing, DuckDuckGo, Brave Search, Startpage, Ecosia, Yahoo, Qwant, Mojeek and SearXNG; save the choice between launches and display provider favicons when available.\n- **Video download shortcut:** dedicated ↓ toolbar action to discover direct video sources on a page.\n- **Downloads library:** ⋮ → Downloads lists Android DownloadManager entries, with options to play compatible videos in-app or open files in another app.\n- **Adblock and privacy controls:** dedicated menu and session-level blocked-request statistics; adblock preference persists.\n- **Navigation and display controls:** edge-swipe navigation, desktop user-agent toggle and dark websites toggle (Android 10+).\n- **Full-screen mode** (⋮ → Full screen): hides the toolbar, tab bar and the phone's status/navigation bars. Back or the floating ⛶ control leaves it. The control fades after three seconds and can be revealed by tapping its original position.
 - **Site full screen:** pages' own full-screen buttons (e.g. videos) now work; previously they did nothing.
 - **Emulator UI check** (`.github/workflows/ui-check.yml`, `scripts/ui-check.sh`) on Android 10 and 15, run on pull requests.
 
 ### Fixed
+- **Private browsing data could come back.** Cleanup only ran when the private window closed normally, so after a crash or force-stop private cookies and site data reappeared in the next private window. Leftovers are now deleted before a private window starts and when a normal window opens, and the private process ends when its last window closes.
+- **Rotating a private window cleared its logins.** Private windows now handle rotation without restarting.
+- **Private windows ignored your settings and lost bookmarks.** They now start with your normal search engine, homepage and other settings, and show your bookmarks; changes to bookmarks or history are refused with a message instead of being silently discarded.
+- **Links from other apps stacked extra browser windows** and replaced the current page. They now open in a new tab in the existing window.
+- **New tab, + and Home** ignored the homepage setting.
 - **Toolbar under the status bar.** On Android 15+ the address bar was drawn underneath the status bar and page content under the navigation buttons. The app now pads its UI by the system bar sizes on all Android versions, and the keyboard no longer covers the page.
 
 ## Build 19 (2026-10-12)

@@ -20,11 +20,15 @@ RESULTS="$OUT/results.json"
 SITE="http://localhost:$PORT"
 mkdir -p "$OUT"
 FAILED=0
-fail(){ echo "::error::$*"; FAILED=1; }
-pass(){ echo "::notice::$*"; }
+SUMMARY="${GITHUB_STEP_SUMMARY:-$OUT/summary.md}"
+PASSED=0
+# GitHub shows only 10 notices per step, so passes go to the run summary page; failures stay as errors.
+fail(){ echo "::error::$*"; echo "- ❌ $*" >> "$SUMMARY"; FAILED=1; }
+pass(){ echo "PASS: $*"; echo "- ✅ $*" >> "$SUMMARY"; PASSED=$((PASSED+1)); }
 
 API=$(adb shell getprop ro.build.version.sdk | tr -d '\r')
 echo "Android API level: $API"
+echo "### Private isolation check — Android API $API" >> "$SUMMARY"
 if [ "$API" -lt 28 ]; then pass "Private browsing needs Android 9+; skipping on API $API"; exit 0; fi
 
 python3 scripts/isolation-server.py "$PORT" "$RESULTS" 2> "$OUT/server.log" &
@@ -104,6 +108,11 @@ adb shell input keyevent KEYCODE_BACK   # the check tab has no history, so Back 
 sleep 4
 if [ -z "$(private_pid)" ]; then pass "Closing the last private window ended the private process"
 else fail "Private process still running after the private window closed (pid $(private_pid))"; fi
+adb shell am start -W -n "$PKG/.MainActivity" >/dev/null   # normal window resumes and cleans up
+sleep 5
+app_files > "$OUT/files-after-close.txt"
+if grep -qi incognito "$OUT/files-after-close.txt"; then fail "Private files still on disk after closing the private window: $(grep -i incognito "$OUT/files-after-close.txt" | tr '\n' ' ')"
+else pass "Private files deleted from disk after the private window closed"; fi
 check private private-after-close ""
 
 # --- 3. Kill the private process mid-session (crash / force-stop) -------------------
@@ -145,5 +154,10 @@ elif grep -q "step=private\|who=private" "$OUT/browser-prefs.xml"; then fail "Pr
 elif grep -q "step=normal" "$OUT/browser-prefs.xml"; then pass "Normal history contains normal pages and no private ones"
 else fail "Normal history did not record normal pages (test cannot prove private ones are absent)"; fi
 
+{ echo; echo "<details><summary>App folders after force-stop, then after the main process started</summary>"; echo; echo '```'
+  cat "$OUT/files-after-force-stop.txt"; echo "--- after main process start ---"; cat "$OUT/files-after-main-start.txt"; echo '```'; echo "</details>"; } >> "$SUMMARY"
 echo "Results:"; cat "$RESULTS"
+PRIVATE_FILES=$(grep -i incognito "$OUT/files-after-force-stop.txt" | sort -u | tr '\n' ' ')
+if [ "$FAILED" -eq 0 ]; then echo "::notice::Private isolation: all $PASSED checks passed on API $API.%0A$(grep '✅' "$SUMMARY" | sed 's/^- ✅ //' | sed ':a;N;$!ba;s/\n/%0A/g')%0APrivate entries on disk after force-stop (then deleted): ${PRIVATE_FILES:-none}"
+else echo "::error::Private isolation: failures on API $API (see errors above and the run summary page)"; fi
 exit $FAILED
