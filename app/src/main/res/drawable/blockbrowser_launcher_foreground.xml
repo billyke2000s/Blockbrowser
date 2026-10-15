@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Adaptive-icon foreground: the shield-and-globe artwork scaled into the 66dp safe zone so launcher masks
+     (circle, squircle, teardrop) never cut it off. The full-bleed version stays in blockbrowser_launcher.xml. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <group android:scaleX="0.72" android:scaleY="0.72" android:pivotX="54" android:pivotY="54">
+        <path android:fillColor="#142D53" android:pathData="M54,11 C69,20 83,22 91,23 L89,59 C87,77 73,91 54,99 C35,91 21,77 19,59 L17,23 C25,22 39,20 54,11Z"/>
+        <path android:strokeColor="#55D7FF" android:strokeWidth="4.5" android:strokeLineJoin="round" android:fillColor="#09172B" android:pathData="M54,15 C68,23 80,25 86,26 L84,59 C82,74 69,87 54,94 C39,87 26,74 24,59 L22,26 C28,25 40,23 54,15Z"/>
+        <path android:strokeColor="#58D9FF" android:strokeWidth="3.4" android:fillColor="@android:color/transparent" android:pathData="M76,53 A22,22 0,1 1,32 53 A22,22 0,1 1,76 53Z"/>
+        <path android:strokeColor="#58D9FF" android:strokeWidth="2.4" android:fillColor="@android:color/transparent" android:pathData="M54,31 L54,75 M33,53 L75,53 M54,31 C41,43 41,63 54,75 M54,31 C67,43 67,63 54,75 M36,42 Q54,51 72,42 M36,64 Q54,55 72,64"/>
+        <path android:strokeColor="#B1F7FF" android:strokeWidth="5" android:strokeLineCap="round" android:fillColor="@android:color/transparent" android:pathData="M25,69 C38,84 80,65 88,46"/>
+    </group>
+</vector>

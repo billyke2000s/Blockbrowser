@@ -24,7 +24,9 @@ Block Browser is a lightweight Android web browser with built-in ad and tracker 
 2. Download the latest available Android APK.
 3. Open the APK on your Android device and follow the installation prompts.
 
-**Android 8.0 or newer required.** Available builds are currently debug-signed; installing a newer build signed with a different key may require uninstalling the previous version, which can remove local app data.
+**Android 8.0 or newer required.**
+
+**Updating:** builds published before the stable signing key was set up were each signed with a different throwaway key, so Android refuses to install a new one over them ("App not installed" or "package conflicts"). Once, uninstall the old version first. To keep your bookmarks, export them before uninstalling (old versions: **⋮ → Export browser data → Bookmarks**, save the text as a `.json` file; new versions: **Bookmarks → ⇅ → Export**) and import the file afterwards in **Bookmarks → ⇅**. Builds signed with the stable key update in place.
 
 ## Using Block Browser
 
@@ -88,6 +90,12 @@ Emulator tests are described in [TESTING.md](TESTING.md).
 The resulting APK is located at `app/build/outputs/apk/debug/app-debug.apk`.
 
 GitHub Actions builds APK artifacts for pull requests and publishes build releases from the main branch.
+
+## Signing
+
+Published APKs are signed in GitHub Actions with the project's key, taken from four repository secrets (**Settings → Secrets and variables → Actions**): `SIGNING_KEYSTORE_BASE64` (the keystore file, base64-encoded), `SIGNING_STORE_PASSWORD`, `SIGNING_KEY_ALIAS` and `SIGNING_KEY_PASSWORD`. The build log shows the certificate fingerprint. Without the secrets, builds fall back to a throwaway key and the workflow warns that they can't update an installed copy.
+
+Keep a private backup of the keystore: if it's lost, every user has to uninstall to move to a new key.
 
 ## Open-source components
 

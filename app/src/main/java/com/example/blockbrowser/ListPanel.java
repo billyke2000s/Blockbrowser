@@ -214,7 +214,9 @@ final class ListPanel {
       super(activity);
       setGravity(Gravity.CENTER_VERTICAL);
       setMinimumHeight(dp(70));
-      setBackground(rounded(PANEL, 18));
+      // Card with a press ripple, since the list's own highlight is turned off.
+      setBackground(new android.graphics.drawable.RippleDrawable(
+          android.content.res.ColorStateList.valueOf(0x3383b9ff), rounded(PANEL, 18), rounded(0xffffffff, 18)));
       setElevation(dp(1));
       setPadding(dp(14), dp(12), dp(14), dp(12));
       FrameLayout iconBox = new FrameLayout(activity);
@@ -248,6 +250,8 @@ final class ListPanel {
     }
 
     void bind(Item it) {
+      setClickable(false); // let the ListView handle taps; rows without an action show no ripple
+      setEnabled(it.click != null || it.longClick != null);
       title.setText(it.title);
       subtitle.setText(it.subtitle);
       subtitle.setVisibility(it.subtitle == null || it.subtitle.length() == 0 ? GONE : VISIBLE);

@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Fixed (review of the privacy-chart and polish changes)
+- **List rows had no tap feedback** after the card restyle; rows now show a ripple, and rows without an action show none.
+- **Blocking statistics weren't cleared** with browsing data, although they include the addresses of blocked pages you opened. They're now an option in Clear browsing data, and the statistics screen has Reset.
+- **Recent blocking statistics were lost** when the app closed (saved only every 25 blocks); they're saved when you leave the app.
+- **Launcher icon** is now an adaptive icon, so launchers mask it properly instead of shrinking it onto a white background.
+- **Scroll position after a restart** wasn't restored reliably on Android 9; restoring now retries until the page is tall enough, and stops if you scroll.
+- **Every published APK had a different signing key**, so phones couldn't update an installed copy. CI now signs with a stable project key when the repository has it (see README → Signing), and version codes increase with each build.
+
 ### Changed
 - **Code restructured.** `MainActivity` was one 65 KB file of one-line methods. Tabs, address-bar suggestions, history, bookmarks, downloads, site settings and settings screens are now separate, readable classes. All existing features were kept.
 - **Menu reorganised.** Back, forward, reload, bookmark and site information sit along the top; settings and privacy controls moved into their own screens instead of 45 flat entries.

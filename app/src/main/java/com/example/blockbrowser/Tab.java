@@ -26,6 +26,8 @@ final class Tab {
   Tab parent;
   /** Scroll position to apply once the next page load finishes (session restore, discarded tabs). */
   Integer restoreY;
+  /** Scroll position seen after the last restore attempt, to tell our own scrolling from the user's. */
+  int restoreAttemptY = -1;
   /** Scroll position for each back/forward history index, so Back and Forward return to the same spot. */
   final SparseIntArray positions = new SparseIntArray();
   /** Address shown while an error page is displayed; Reload retries it. */
