@@ -320,7 +320,11 @@ public class MainActivity extends Activity {
     applyProfileStyle();
     restoreSession();
     if (immersiveRequested) setFullscreen(true);
-    handleExternalIntent(getIntent());
+    // Only a fresh launch carries a new link. When Android recreates the window (after closing the app in the
+    // background, or reopening it from recent apps) it hands back the original intent, and opening that link
+    // again would add a duplicate tab: the restored session already has it.
+    boolean fromHistory = (getIntent().getFlags() & Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) != 0;
+    if (b == null && !fromHistory) handleExternalIntent(getIntent());
   }
 
   void buildUi() {

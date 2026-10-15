@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Fixed
+- **Duplicate tabs**: when Android recreated the browser (after closing it in the background, or when reopened from recent apps), the link that originally opened it was opened again in an extra tab.
+- **Failed pages** were saved to history and shown in tabs as "Webpage not available".
+- **Blocking statistics** screen ran under the status bar and had no back button.
+
 ### Changed (look and layout)
 - **Every pop-up now matches the app**: confirmations, choices and prompts use the dark rounded style instead of Android's plain grey box.
 - **Back in the ⋮ menu**: Search engine (with the current one shown), Ad blocking on/off, Dark websites on/off, Blocking statistics and Close tab. They had been moved into Settings, which made them look removed.
