@@ -289,7 +289,7 @@ if open_menu_item set "Settings"; then
     if wait_text set-d "DuckDuckGo" 8; then
       shot 6-search-engines
       tap set-d text "DuckDuckGo"; sleep 2
-      ENGINE=$(adb shell run-as "$PKG" cat shared_prefs/browser.xml | grep -o 'name="search_engine" value="[0-9]*"' | grep -o '[0-9]*$')
+      ENGINE=$(adb exec-out run-as "$PKG" cat shared_prefs/browser.xml | tr -d '\r' | grep -o 'name="search_engine" value="[0-9]*"' | grep -o '[0-9]*"$' | tr -d '"')
       [ "$ENGINE" = "2" ] && pass "Choosing DuckDuckGo in Settings saves it" || { fail "Search engine not saved after tapping DuckDuckGo (saved: '${ENGINE:-none}')"; diag engine; }
       dump set-e
       if has set-e text "DuckDuckGo" && has set-e text "Search engine"; then pass "Settings screen shows the chosen engine"; else fail "Settings didn't update after choosing an engine"; diag engine2; fi
@@ -303,11 +303,23 @@ if open_menu_item set "Settings"; then
 else fail "'Settings' not found in the menu"; diag menu-settings; fi
 adb shell input keyevent KEYCODE_BACK; sleep 1
 
+# Menu -> "Search engine: …" (directly in the menu) -> list of all 10 engines with Bing choosable.
+if open_menu_item eng "Search engine: DuckDuckGo"; then
+  if wait_text eng-c "Mojeek" 8; then
+    N=0; for e in Google Bing DuckDuckGo "Brave Search" Startpage Ecosia Yahoo Qwant Mojeek SearXNG; do has eng-c text "$e" && N=$((N+1)); done
+    shot 7-engine-list
+    [ "$N" -eq 10 ] && pass "Search engine in the menu lists all 10 engines" || { fail "Search engine list shows $N of 10 engines"; diag engine-list; }
+    tap eng-c text "Bing"; sleep 2; dump eng-d; tap eng-d text "⋮"; sleep 2; dump eng-e
+    has eng-e text "Search engine: Bing" && pass "Choosing Bing from the menu's list works" || { fail "Menu didn't show Bing after choosing it"; diag engine-menu; }
+    adb shell input keyevent KEYCODE_BACK; sleep 1
+  else fail "Search engine list from the menu didn't open"; diag engine-open; fi
+else fail "'Search engine' not in the menu"; diag menu-engine; fi
+
 # Menu -> Privacy and security -> ad blocking switch toggles and is saved.
 if open_menu_item priv "Privacy and security"; then
   if wait_text priv-c "Ad and tracker blocking" 8; then
     tap priv-c text "Ad and tracker blocking"; sleep 2
-    AD=$(adb shell run-as "$PKG" cat shared_prefs/browser.xml | grep -o 'name="adblock" value="[a-z]*"' | grep -o '[a-z]*"$' | tr -d '"')
+    AD=$(adb exec-out run-as "$PKG" cat shared_prefs/browser.xml | tr -d '\r' | grep -o 'name="adblock" value="[a-z]*"' | grep -o '[a-z]*"$' | tr -d '"')
     [ "$AD" = "false" ] && pass "Ad-blocking switch in Privacy and security works" || { fail "Ad-blocking switch didn't change the setting (saved: '${AD:-none}')"; diag adblock; }
     dump priv-d; tap priv-d text "Ad and tracker blocking"; sleep 1   # back on
   else fail "Privacy and security screen didn't open"; diag privacy; fi
