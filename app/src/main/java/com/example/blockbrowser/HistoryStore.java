@@ -120,6 +120,7 @@ final class HistoryStore extends SQLiteOpenHelper {
             if (!v.containsKey("title")) v.put("title", "");
             db.insertWithOnConflict("history", null, v, SQLiteDatabase.CONFLICT_IGNORE);
           }
+          if (++writesSincePrune >= 200) { writesSincePrune = 0; prune(db); }
         } catch (Exception e2) { Log.w(TAG, "could not save visit", e2); }
       }
     });

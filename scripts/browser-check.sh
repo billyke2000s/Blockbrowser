@@ -119,6 +119,8 @@ diag(){
   [ -n "$crash" ] && { echo "::error::[$1] crash log:%0A$crash"; echo "  - crash: $(echo "$crash" | sed 's/%0A/ ⏎ /g' | head -c 600)" >> "$SUMMARY"; }
   dump "diag-$1" >/dev/null 2>&1
   echo "  - on screen [$1]: $(screen_text "diag-$1")" >> "$SUMMARY"
+  echo "  - in front: $(adb shell dumpsys activity activities 2>/dev/null | grep -m1 -E 'topResumedActivity|mResumedActivity' | sed 's/^ *//' | head -c 200)" >> "$SUMMARY"
+  echo "  - task log: $(adb logcat -d 2>/dev/null | grep -E 'ActivityTaskManager|ActivityManager|BlockBrowser' | grep -iE 'blockbrowser|moveTaskToBack|Force|Killing|finish' | tail -5 | sed 's/^.*: //' | tr '\n' '|' | head -c 600)" >> "$SUMMARY"
   shot "diag-$1"
 }
 # Android shows a one-time "Viewing full screen" tip over everything; close it if present.
