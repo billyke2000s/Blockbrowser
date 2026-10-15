@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Test-only overrides for the "uitest" build type. Not part of published APKs. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <application android:networkSecurityConfig="@xml/uitest_network_security">
+        <!-- Lets the test script open a URL in a private window with `adb shell am start`. -->
+        <activity android:name=".IncognitoActivity" android:exported="true" tools:replace="android:exported" />
+    </application>
+</manifest>

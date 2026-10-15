@@ -6,22 +6,17 @@ Block Browser is a lightweight Android web browser with built-in ad and tracker 
 
 ## Highlights
 
-- **Session restoration** — reopen previously visited tabs, restore the active tab and return to saved scroll positions after restarting the browser (some dynamically loaded pages may reposition themselves).
-
-- **Bookmarks and history** — save favourite pages, revisit recently opened websites, and clear saved entries.
-- **Find and share** — search text within a page and share links through Android apps.
-- **Browsing data controls** — clear cookies, cache, web storage and history without deleting bookmarks or downloads.
-
-- **Built-in ad and tracker blocking** — filters requests against a curated blocklist of approximately 215,000 known advertising, tracking and malicious domains, including subdomains.
-- **Adblock controls** — enable or disable blocking from a dedicated menu, and see how many requests have been blocked during your session.
-- **Video downloads** — tap the **↓** button on the browser toolbar to find direct video files on the current page and download them.
-- **Download library** — open **Downloads** from the ⋮ menu to see files saved through the browser. Play compatible videos inside Block Browser or choose another installed app.
-- **Fullscreen browsing** — hide browser and system bars for a more immersive experience. The fullscreen control fades away after a few seconds; tap its position to reveal it again.
-- **Search engine choice** — select Google, Bing, DuckDuckGo, Brave Search, Startpage, Ecosia, Yahoo, Qwant, Mojeek or SearXNG from **⋮ → Search engine**. The selection is saved, and the chooser displays search-engine favicons when available.
-- **Multiple tabs** — switch between pages without losing your place.
-- **Quick navigation** — address-bar search, back, forward, refresh, home and edge-swipe navigation.
-- **Desktop mode and dark websites** — optional viewing controls, with dark rendering support depending on Android version and website.
-- **Privacy dashboard** — view session-level blocking statistics.
+- **Built-in ad and tracker blocking** — requests to about 215,000 known advertising, tracking and malicious domains (and their subdomains) are stopped. Turn it off for a single site from the site information button if the site breaks.
+- **Private windows** — a separate process with its own cookies and storage, deleted when the window closes (see below).
+- **Smart address bar** — suggestions from your bookmarks and history with titles and site icons, ranked by how well the address matches and how often and recently you visited. Optional suggestions from your search engine (off by default).
+- **Tabs** — a grid of open tabs with page previews: swipe or tap × to close, Undo, drag to reorder, duplicate, close others or all. Links from other apps open in a new tab. Tabs are restored after a restart, and only load when you open them.
+- **Bookmarks** — folders, edit, move and delete, search, and import or export as an HTML file (works with Chrome, Firefox, Edge and Safari) or JSON.
+- **History** — grouped by day or by website, searchable; delete single pages, a day, a website or a time range.
+- **Downloads** — live progress, open, share, retry, cancel and delete. Downloads from signed-in sites carry the site's cookies.
+- **Site permissions** — camera, microphone, location and protected media are asked per site and remembered; review or change them in the site information panel or in Settings → Privacy and security → Site settings.
+- **Privacy controls** — third-party cookies blocked by default, tracking parameters (utm_*, fbclid, gclid…) removed from links, choose exactly what to clear, and clear cookies and data for one site.
+- **Full screen** — hides the browser and system bars and stays on as you browse until you turn it off. Full-screen video continues in picture-in-picture when you leave the app.
+- **More** — find in page, share, desktop site, darken websites, translate, reader mode, print or save as PDF, add to home screen, video download, ten search engines.
 
 ## Get Block Browser
 
@@ -33,15 +28,26 @@ Block Browser is a lightweight Android web browser with built-in ad and tracker 
 
 ## Using Block Browser
 
-**Download a video:** Open a page with a directly accessible video and tap **↓** in the main toolbar. Select the video URL to download.
+- **Menu:** **⋮** opens the menu. Back, forward, reload, bookmark (☆) and site information are along its top.
+- **Tabs:** tap the square with the tab count.
+- **Site information:** tap 🔒 or ⚠ at the left of the address bar to see the connection, blocked trackers, permissions and site data.
+- **Settings:** **⋮ → Settings** for the search engine, search suggestions, homepage, text size and darkening; **⋮ → Privacy and security** for ad blocking, tracking-parameter removal, third-party cookies and site settings.
+- **Download a video:** open a page with a directly accessible video, then **⋮ → Download video**.
+- **Full screen:** **⋮ → Full screen**. The floating control fades after three seconds; tap its position to show it, then tap to exit. Back also exits.
 
-**Find downloaded files:** Open the **⋮ menu → Downloads**. Select a completed download to play it in Block Browser or open it with another compatible app.
+## Private browsing
 
-**Choose your search engine:** Open **⋮ → Search engine**, select a provider and search directly from the address bar. Google is the default.
+**⋮ → New private window** (Android 9 or newer) opens a window marked **Private**. It runs in a separate app process with its own cookies, site storage, cache and service workers, so sites can't see your normal logins and normal windows can't see private ones.
 
-**Control ad blocking:** Open **⋮ → Adblock** to change the blocking setting and view statistics.
+- Nothing from a private window is saved to history, the session, recently closed tabs or site icons, and search-engine suggestions are never fetched there.
+- Permission decisions last only until the window closes. Normal "Block" decisions carry over; normal "Allow" decisions don't.
+- It starts with your normal settings. Settings changed inside it apply only until it closes.
+- Your bookmarks and history are available for suggestions, but can't be changed from a private window.
+- Android Autofill is off, and the keyboard is asked not to learn what you type (your keyboard app decides whether to honour that).
+- Private pages are hidden from the recent-apps preview. On Android 12 and older this also blocks screenshots in private windows.
+- When the last private window closes, its cookies and site data are deleted and its process ends. If the app crashes or is force-stopped, leftovers are deleted before they can be used again.
 
-**Go fullscreen:** Open **⋮ → Full screen**. The floating fullscreen control fades after three seconds. Tap its original location to show it again, then tap it to exit; Android's Back action also exits fullscreen.
+**Limits:** downloads from a private window are saved to your Downloads folder and appear in Android's download list and notifications like any other download. Private browsing hides your activity from this app and other people using the phone, not from websites, your network or your internet provider.
 
 ## Built for a cleaner web
 
@@ -53,6 +59,19 @@ Domain filtering is not the same as full content filtering: first-party advertis
 
 Video downloading works with discoverable, directly accessible media URLs. Protected streams, DRM video and some streaming-site playback formats cannot be downloaded by this feature.
 
+## Known limitations
+
+Block Browser is built on Android System WebView, which sets some hard limits:
+
+- **Google sign-in** may refuse to work: Google blocks signing in to Google accounts inside apps' web views.
+- **Website notifications** aren't supported by WebView.
+- **Downloads can't be paused and resumed**; Android's download manager has no public pause. Files a page creates in memory (blob: links) can't be downloaded.
+- **Clearing one site's data** removes its storage and the cookies WebView can see; cookies set for specific sub-paths may remain.
+- **Search suggestions** use the search engines' informal endpoints, which can change. CI checks them on every build. At the time of writing, Brave Search's endpoint returned a bot-check page to CI (untested from phones), and Startpage and Mojeek have none.
+- **Private windows** need Android 9 or newer. Private downloads are saved to your Downloads folder like any other.
+- **Darken websites** affects pages without their own dark design; sites with a dark mode follow the app's dark theme anyway on Android 13+.
+- **Tab groups** and browser extensions aren't supported.
+
 ## Build from source
 
 The app uses Android WebView and Java, with Gradle-based Android builds.
@@ -60,8 +79,11 @@ The app uses Android WebView and Java, with Gradle-based Android builds.
 Requirements: JDK 17, Android SDK platform 35, Android build tools 35.0.0 and Gradle 8.9.
 
 ```bash
-gradle :app:assembleDebug
+gradle :app:assembleDebug        # the app
+gradle :app:testDebugUnitTest    # unit tests
 ```
+
+Emulator tests are described in [TESTING.md](TESTING.md).
 
 The resulting APK is located at `app/build/outputs/apk/debug/app-debug.apk`.
 
