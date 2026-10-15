@@ -303,8 +303,8 @@ if open_menu_item set "Settings"; then
       if has set-e text "DuckDuckGo" && has set-e text "Search engine"; then pass "Settings screen shows the chosen engine"; else fail "Settings didn't update after choosing an engine"; diag engine2; fi
       adb shell input keyevent KEYCODE_BACK; sleep 2
       dump srch; tap srch content-desc "Address bar"; sleep 1
-      adb shell input text "blockbrowser%stest"; adb shell input keyevent KEYCODE_ENTER; sleep 4
-      dump srch2
+      adb shell input text "blockbrowser%stest"; adb shell input keyevent KEYCODE_ENTER
+      wait_text srch2 "duckduckgo.com" 20
       if has srch2 text "duckduckgo.com" contains; then pass "Address-bar search uses the chosen engine"; else fail "Search didn't go to DuckDuckGo"; diag search; fi
     else fail "Search engine list didn't open"; diag engines; fi
   else fail "Settings screen didn't open"; diag settings; fi
