@@ -15,7 +15,8 @@
 
     <application
         android:name=".BrowserApplication"
-        android:icon="@drawable/blockbrowser_icon"
+        android:icon="@drawable/blockbrowser_launcher"
+        android:roundIcon="@drawable/blockbrowser_launcher"
         android:label="Block Browser"
         android:theme="@android:style/Theme.Material.NoActionBar"
         android:usesCleartextTraffic="false">
