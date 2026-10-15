@@ -133,6 +133,7 @@ public class MainActivity extends Activity {
   volatile Set<String> blocked = new HashSet<>(BUILTIN_BLOCKED);
   volatile boolean listLoaded = false;
   final AtomicLong blockedCount = new AtomicLong();
+  BlockingStats blockingStats;
 
   static final String[] ENGINE_NAMES = {"Google", "Bing", "DuckDuckGo", "Brave Search", "Startpage", "Ecosia", "Yahoo", "Qwant", "Mojeek", "SearXNG"};
   static final String[] ENGINE_URLS = {"https://www.google.com/search?q=", "https://www.bing.com/search?q=", "https://duckduckgo.com/?q=", "https://search.brave.com/search?q=", "https://www.startpage.com/sp/search?query=", "https://www.ecosia.org/search?q=", "https://search.yahoo.com/search?p=", "https://www.qwant.com/?q=", "https://www.mojeek.com/search?q=", "https://searx.be/search?q="};
@@ -306,6 +307,7 @@ public class MainActivity extends Activity {
     blockAds = prefs.getBoolean("adblock", true);
     immersiveRequested = prefs.getBoolean("fullscreen", false);
     siteSettings = createSiteSettings();
+    blockingStats = isPrivate() ? null : new BlockingStats(this);
     loadBlocklist();
     if (!isPrivate()) history().migrateFrom(prefs);
     buildUi();
@@ -1278,6 +1280,7 @@ public class MainActivity extends Activity {
       if (main && host != null) tab.pageHost = host.toLowerCase(Locale.ROOT);
       if (!shouldBlock(tab, host, main)) return null;
       blockedCount.incrementAndGet();
+      if (blockingStats != null) { blockingStats.record(host); if (blockedCount.get() % 25 == 0) blockingStats.flush(); }
       tab.blocked.incrementAndGet();
       if (main) {
         String html = "<html><head><meta name=viewport content='width=device-width'></head><body style=\"font-family:sans-serif;padding:24px\"><h3>Blocked by Block Browser</h3><p>"
