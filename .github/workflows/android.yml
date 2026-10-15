@@ -45,6 +45,29 @@ jobs:
         with:
           gradle-version: '8.9'
 
+      # Sign with the project's stable key when the repository has it (Settings → Secrets and variables → Actions):
+      # SIGNING_KEYSTORE_BASE64, SIGNING_STORE_PASSWORD, SIGNING_KEY_ALIAS, SIGNING_KEY_PASSWORD.
+      # Without it each build gets a throwaway key and phones refuse to update an installed copy.
+      - name: Set up stable signing key
+        env:
+          KEYSTORE_B64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ]; then
+            echo "::warning::No signing key secrets set. This APK uses a throwaway key and can't be installed over an existing Block Browser."
+            exit 0
+          fi
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/blockbrowser.jks"
+          {
+            echo "BB_KEYSTORE=$RUNNER_TEMP/blockbrowser.jks"
+            echo "BB_STORE_PASSWORD=$STORE_PASSWORD"
+            echo "BB_KEY_ALIAS=$KEY_ALIAS"
+            echo "BB_KEY_PASSWORD=$KEY_PASSWORD"
+          } >> "$GITHUB_ENV"
+          echo "::notice::Signing with the stable Block Browser key"
+
       - name: Unit tests
         run: gradle --no-daemon :app:testDebugUnitTest
 
@@ -73,6 +96,11 @@ jobs:
         run: |
           { echo 'Android APK compilation failed. Last 130 lines of the Gradle log:'; echo; echo '\`\`\`'; grep -n -E -C 6 'error:|FAILURE:|What went wrong:|Execution failed|AAPT:|Android resource linking failed' build.log | head -n 140 || true; echo; tail -n 15 build.log; echo '\`\`\`'; } > issue.txt
           gh issue create --title "Android build failed (run #${{ github.run_number }})" --body-file issue.txt || true
+
+      - name: Show signing certificate
+        run: |
+          APKSIGNER="$(ls -d "$ANDROID_HOME"/build-tools/35.0.0)/apksigner"
+          "$APKSIGNER" verify --print-certs app/build/outputs/apk/debug/app-debug.apk | grep -E "SHA-256|DN" | head -2
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4

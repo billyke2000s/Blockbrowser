@@ -17,7 +17,11 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-/** Local, session-only privacy statistics. Never estimates categories it cannot measure. */
+/**
+ * Blocking statistics: a doughnut of blocked requests on the open pages, plus the saved totals from
+ * {@link BlockingStats} (normal windows only). Everything stays on the device. Never estimates categories
+ * (ads vs trackers vs malware) it cannot measure.
+ */
 final class PrivacyChart {
   private PrivacyChart() {}
   static void show(MainActivity a) {
@@ -105,11 +109,20 @@ final class PrivacyChart {
     TextView explanation=text(a,"The doughnut shows currently open page counters, which reset on navigation. The total and domain rankings include earlier pages. Ads, trackers and malware cannot be accurately separated using the current combined blocklist.",13,ListPanel.MUTED);
     explanation.setPadding(0,a.dp(24),0,a.dp(12));
     root.addView(explanation);
-    TextView close=text(a,"DONE",15,ListPanel.ACCENT);
-    close.setGravity(Gravity.END);
-    close.setPadding(0,a.dp(12),0,a.dp(12));
+    LinearLayout buttons=new LinearLayout(a);
+    buttons.setGravity(Gravity.END|Gravity.CENTER_VERTICAL);
+    if (a.blockingStats != null) {
+      TextView reset=button(a,"Reset statistics");
+      reset.setOnClickListener(v->new android.app.AlertDialog.Builder(a).setTitle("Reset blocking statistics?")
+          .setMessage("Deletes the saved totals, blocked addresses and daily counts.")
+          .setPositiveButton("Reset",(d,n)->{a.blockingStats.clear();dialog.dismiss();show(a);})
+          .setNegativeButton("Cancel",null).show());
+      buttons.addView(reset);
+    }
+    TextView close=button(a,"Done");
     close.setOnClickListener(v->dialog.dismiss());
-    root.addView(close);
+    buttons.addView(close);
+    root.addView(buttons);
     ScrollView scroll=new ScrollView(a);
     scroll.setFillViewport(true);
     scroll.addView(root);
@@ -118,6 +131,14 @@ final class PrivacyChart {
     if(w!=null){w.setLayout(-1,-1);w.setStatusBarColor(ListPanel.SURFACE);w.setNavigationBarColor(ListPanel.SURFACE);}
     dialog.show();
     if(dialog.getWindow()!=null) dialog.getWindow().setLayout(-1,-1);
+  }
+  private static TextView button(MainActivity a,String s){
+    TextView b=text(a,s,15,ListPanel.ACCENT);
+    b.setGravity(Gravity.CENTER);
+    b.setMinHeight(a.dp(48));
+    b.setPadding(a.dp(16),0,a.dp(16),0);
+    b.setTypeface(null,android.graphics.Typeface.BOLD);
+    return b;
   }
   private static TextView text(MainActivity a,String s,int size,int color){
     TextView v=new TextView(a);v.setText(s);v.setTextSize(size);v.setTextColor(color);return v;

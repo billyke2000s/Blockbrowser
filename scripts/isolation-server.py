@@ -101,7 +101,8 @@ class Handler(BaseHTTPRequestHandler):
                 state["hits"][n] = state["hits"].get(n, 0) + 1
                 save()
             filler = "".join("<p>Paragraph %d of page %s.</p>" % (i, n) for i in range(200))
-            script = ("setTimeout(function(){fetch('/scroll?n='+%s+'&y='+Math.round(window.scrollY))},3000);" % json.dumps(n))
+            # Report the scroll position several times; the last report wins (restoring can finish after 3 s on slow emulators).
+            script = ("[3000,6000,9000,12000].forEach(function(t){setTimeout(function(){fetch('/scroll?n='+%s+'&y='+Math.round(window.scrollY))},t)});" % json.dumps(n))
             body = ("<!doctype html><html><head><meta name=viewport content='width=device-width'><title>Page %s</title></head>"
                     "<body><h1>Page %s</h1>%s<script>%s</script></body></html>" % (n, n, filler, script)).encode()
             self.send(body)

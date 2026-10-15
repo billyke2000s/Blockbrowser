@@ -119,6 +119,7 @@ diag(){
   [ -n "$crash" ] && { echo "::error::[$1] crash log:%0A$crash"; echo "  - crash: $(echo "$crash" | sed 's/%0A/ ⏎ /g' | head -c 600)" >> "$SUMMARY"; }
   dump "diag-$1" >/dev/null 2>&1
   echo "  - on screen [$1]: $(screen_text "diag-$1")" >> "$SUMMARY"
+  echo "  - process events: $(adb logcat -d 2>/dev/null | grep -E 'Fatal signal|has died|lowmemorykiller|lmkd|Killing [0-9]+:com.example|Force stopping com.example|ANR in com.example|Process com.example.*died' | tail -6 | sed 's/^.*: //' | tr '\n' '|' | head -c 700)" >> "$SUMMARY"
   echo "  - in front: $(adb shell dumpsys activity activities 2>/dev/null | grep -m1 -E 'topResumedActivity|mResumedActivity' | sed 's/^ *//' | head -c 200)" >> "$SUMMARY"
   echo "  - task log: $(adb logcat -d 2>/dev/null | grep -E 'ActivityTaskManager|ActivityManager|BlockBrowser' | grep -iE 'blockbrowser|moveTaskToBack|Force|Killing|finish' | tail -5 | sed 's/^.*: //' | tr '\n' '|' | head -c 600)" >> "$SUMMARY"
   shot "diag-$1"
@@ -137,12 +138,16 @@ for _ in $(seq 1 10); do dump tabs && has tabs content-desc "4 open tabs, switch
 if has tabs content-desc "4 open tabs, switch tabs"; then pass "Tab button shows 4 tabs (home + 3)"; else fail "Tab button doesn't show 4 tabs"; diag tabs; fi
 
 # ---- 2. Tab switcher: close and undo --------------------------------------------------------------------
-tap tabs content-desc "open tabs, switch tabs" contains; sleep 2; dump switcher; shot 1-switcher
+tap tabs content-desc "open tabs, switch tabs" contains
+for _ in $(seq 1 8); do sleep 1; dump switcher && has switcher content-desc "Current tab: Page 3" && has switcher content-desc "Tab: Page 1" && break; done
+shot 1-switcher
 if has switcher content-desc "Current tab: Page 3" && has switcher content-desc "Tab: Page 1"; then pass "Tab switcher lists the tabs with the current one marked"
 else fail "Tab switcher contents unexpected"; diag switcher; fi
-tap switcher content-desc "Close Page 2"; sleep 1; dump closed
+tap switcher content-desc "Close Page 2"
+for _ in $(seq 1 6); do sleep 1; dump closed && ! has closed content-desc "Tab: Page 2" && has_btn closed "Undo" && break; done
 if ! has closed content-desc "Tab: Page 2" && has_btn closed "Undo"; then pass "Closing a tab removes it and offers Undo"; else fail "Close/Undo bar not as expected"; diag closed; fi
-tap_btn closed "Undo"; sleep 1; dump undone
+tap_btn closed "Undo"
+for _ in $(seq 1 6); do sleep 1; dump undone && has undone content-desc "Tab: Page 2" && break; done
 if has undone content-desc "Tab: Page 2" && has undone content-desc "Current tab: Page 3"; then pass "Undo restored the closed tab without switching away from the current one"
 else fail "Undo did not restore the tab as expected"; diag undone; fi
 tap undone content-desc "Done"; sleep 1
@@ -157,7 +162,9 @@ adb shell am force-stop "$PKG"; sleep 1
 reset_hits
 adb shell am start -W -n "$PKG/.MainActivity" >/dev/null
 if wait_for "d['scroll'].get('3') is not None" 40; then
+  sleep 10   # the page reports again at 6, 9 and 12 s; use the latest
   Y=$(json "d['scroll'].get('3')")
+  echo "  - restore log: $(adb logcat -d -s BlockBrowserTest:I | grep 'scroll restore' | tail -2 | sed 's/^.*BlockBrowserTest: //' | tr '\n' '|')" >> "$SUMMARY"
   if [ "${Y:-0}" -gt 200 ]; then pass "After restart the selected tab (Page 3) reloaded at its scroll position (y=$Y)"
   else fail "Scroll position not restored (y=$Y; saved session: $(adb shell run-as "$PKG" cat shared_prefs/browser.xml | grep -o 'page?n=3[^}]*' | head -1 | head -c 120))"; fi
 else fail "Selected tab did not reload after restart"; diag restore; fi
@@ -201,12 +208,15 @@ if wait_text geo1 "use your location?" 20; then
   if wait_step geo1 30; then
     R=$(step_result geo1); [ "$R" != "err1" ] && pass "Allowed: the site got location access (result: $R)" || fail "Site was denied after Allow"
   else fail "Location page never reported"; fi
-  open_url "$SITE/geo?step=geo2"; sleep 4; dump geo2
-  if has geo2 text "use your location?" contains; then
-    fail "Asked again although the decision was remembered"
+  open_url "$SITE/geo?step=geo2"
+  wait_step geo2 30
+  PROMPTS=$(adb logcat -d -s BlockBrowserTest:I | grep -c "location prompt shown")
+  if [ "$PROMPTS" -eq 1 ]; then pass "The remembered decision was used without asking again"
+  else
+    fail "Asked again although the decision was remembered ($PROMPTS prompts)"
     echo "  - log: $(adb logcat -d -s BlockBrowserTest:I | grep location | tail -6 | sed 's/^.*BlockBrowserTest: //' | tr '\n' '|')" >> "$SUMMARY"
-    tap_btn geo2 "Allow"
-  else pass "The remembered decision was used without asking again"; fi
+    dump geo2; tap_btn geo2 "Allow"
+  fi
   wait_step geo2 30 && [ "$(step_result geo2)" != "err1" ] && pass "Second visit got location access" || fail "Second visit result: $(step_result geo2)"
   if [ "$API" -ge 28 ]; then
     open_private "$SITE/geo?step=geo3"

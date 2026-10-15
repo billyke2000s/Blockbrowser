@@ -12,7 +12,11 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-/** Bounded, local blocking telemetry. Never records full URLs or browsing history. */
+/**
+ * Saved blocking statistics for normal windows: total, up to 200 blocked hostnames and 90 days of daily counts.
+ * Stored only on the device. Records hostnames, not full addresses; note that a blocked page you opened is
+ * counted under its own hostname, so this is cleared with "Clear browsing data → Blocking statistics".
+ */
 final class BlockingStats {
   private static final String KEY = "blocking_stats_v1";
   private static final int MAX_DOMAINS = 200;

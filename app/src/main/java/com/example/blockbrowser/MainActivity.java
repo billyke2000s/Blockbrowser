@@ -1054,6 +1054,7 @@ public class MainActivity extends Activity {
     if (t != null) captureThumbnail(t);
     saveSession();
     CookieManager.getInstance().flush(); // write cookies so logins survive Android killing the process in the background
+    if (blockingStats != null) blockingStats.flush(); // otherwise up to 24 blocked requests since the last save are lost
     super.onPause();
   }
 
@@ -1363,17 +1364,7 @@ public class MainActivity extends Activity {
       if (y == null) y = tab.positions.get(view.copyBackForwardList().getCurrentIndex(), 0);
       if (y > 0) {
         // Layout can finish after onPageFinished (slower devices, older WebView): retry until the position sticks.
-        final int targetY = y;
-        for (int delay : new int[]{150, 600, 1200, 2000}) {
-          view.postDelayed(() -> {
-            if (tab.web != view || view.getScrollY() >= 4) return; // restored, or the user already scrolled
-            view.scrollTo(0, targetY);
-            // Older WebView versions can ignore scrollTo right after loading; ask the page itself (CSS pixels).
-            float scale = view.getScale();
-            int cssY = Math.round(targetY / (scale > 0 ? scale : getResources().getDisplayMetrics().density));
-            view.evaluateJavascript("window.scrollY<4&&window.scrollTo(0," + cssY + ")", null);
-          }, delay);
-        }
+        restoreScroll(tab, view, y, 0);
       }
       if (tab == currentTab()) updateToolbar(tab);
       scheduleSessionSave();
@@ -1390,6 +1381,29 @@ public class MainActivity extends Activity {
       handleRendererGone(tab, view, detail.didCrash());
       return true; // keep the app running; the tab is rebuilt
     }
+  }
+
+  /**
+   * Scrolls a freshly loaded page back to where it was. The page may not be tall enough yet when loading
+   * finishes (slow devices, Android 9's WebView), so this retries every 250 ms for up to 6 seconds until the
+   * position sticks. It stops as soon as the user scrolls or the tab shows something else.
+   */
+  void restoreScroll(Tab tab, WebView view, int targetY, int attempt) {
+    if (tab.web != view) return;
+    int y = view.getScrollY();
+    boolean done = Math.abs(y - targetY) <= 4, userScrolled = attempt > 0 && y > 4 && y != tab.restoreAttemptY;
+    if (done || userScrolled || attempt > 24) {
+      if (BuildConfig.TEST_LOGS) Log.i("BlockBrowserTest", "scroll restore target=" + targetY + " now=" + y + " attempts=" + attempt + (done ? " done" : userScrolled ? " user-scrolled" : " gave-up") + " contentHeight=" + view.getContentHeight());
+      return;
+    }
+    view.scrollTo(0, targetY);
+    if (view.getScrollY() < targetY - 4) {
+      // Older WebView versions can ignore scrollTo right after loading; ask the page itself (CSS pixels).
+      float scale = view.getScale();
+      int cssY = Math.round(targetY / (scale > 0 ? scale : getResources().getDisplayMetrics().density));
+      view.evaluateJavascript("window.scrollTo(0," + cssY + ")", null);
+    }
+    view.postDelayed(() -> { tab.restoreAttemptY = view.getScrollY(); restoreScroll(tab, view, targetY, attempt + 1); }, 250);
   }
 
   static String sslReason(android.net.http.SslError e) {
@@ -1660,6 +1674,7 @@ public class MainActivity extends Activity {
     waiting = new ArrayList<>();
     waiting.add(callback);
     pendingGeo.put(origin, waiting);
+    if (BuildConfig.TEST_LOGS) Log.i("BlockBrowserTest", "location prompt shown for '" + origin + "'");
     FrameLayout box = new FrameLayout(this);
     CheckBox remember = rememberBox(box);
     new AlertDialog.Builder(this)
@@ -1955,7 +1970,7 @@ public class MainActivity extends Activity {
     Intent open = new Intent(Intent.ACTION_VIEW, Uri.parse(url), this, MainActivity.class);
     open.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
     android.graphics.drawable.Icon icon = t.favicon != null ? android.graphics.drawable.Icon.createWithBitmap(t.favicon)
-        : android.graphics.drawable.Icon.createWithResource(this, R.drawable.blockbrowser_icon);
+        : android.graphics.drawable.Icon.createWithResource(this, R.mipmap.ic_launcher);
     android.content.pm.ShortcutInfo shortcut = new android.content.pm.ShortcutInfo.Builder(this, "page_" + Integer.toHexString(url.hashCode()))
         .setShortLabel(title.length() > 25 ? title.substring(0, 25) : title).setLongLabel(title).setIcon(icon).setIntent(open).build();
     manager.requestPinShortcut(shortcut, null);
@@ -2036,13 +2051,15 @@ public class MainActivity extends Activity {
     final String[] ranges = {"Last hour", "Last 24 hours", "Last 7 days", "Last 4 weeks", "All time"};
     final long[] spans = {3_600_000L, 86_400_000L, 7 * 86_400_000L, 28 * 86_400_000L, 0};
     final int[] range = {4};
-    final int HISTORY = 0, COOKIES = 1, CACHE = 2, ICONS = 3, CLOSED = 4;
+    final int HISTORY = 0, COOKIES = 1, CACHE = 2, ICONS = 3, CLOSED = 4, STATS = 5;
     final List<String> labels = new ArrayList<>();
     final List<Integer> kinds = new ArrayList<>();
     if (!isPrivate()) { labels.add("Browsing history"); kinds.add(HISTORY); }
     labels.add("Cookies and site data (signs you out of most sites)"); kinds.add(COOKIES);
     labels.add("Cached images and files"); kinds.add(CACHE);
     if (!isPrivate()) { labels.add("Site icons"); kinds.add(ICONS); labels.add("Recently closed tabs"); kinds.add(CLOSED); }
+    // Blocked addresses include sites you opened (a blocked page is counted under its own address).
+    if (blockingStats != null) { labels.add("Blocking statistics (blocked addresses and daily counts)"); kinds.add(STATS); }
     final boolean[] checked = new boolean[labels.size()];
     for (int i = 0; i < checked.length; i++) checked[i] = kinds.get(i) != ICONS && kinds.get(i) != CLOSED;
     final Runnable[] show = new Runnable[1];
@@ -2070,6 +2087,8 @@ public class MainActivity extends Activity {
                 for (Tab t : tabs) t.favicon = null;
               } else if (kind == CLOSED) {
                 prefs.edit().remove("closed_tabs").remove("recently_closed_url").apply();
+              } else if (kind == STATS) {
+                blockingStats.clear();
               }
             }
             toast("Browsing data cleared");

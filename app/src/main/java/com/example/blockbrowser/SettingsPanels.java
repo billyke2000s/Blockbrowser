@@ -69,7 +69,7 @@ final class SettingsPanels {
               + " · " + a.blockedCount.get() + " requests blocked this session", () -> { a.setAdblock(!a.blockAds); load[0].run(); });
       adblock.trailing = a.blockAds ? "On" : "Off";
       items.add(adblock);
-      items.add(new ListPanel.Item("◉", "Blocking statistics", "Live session chart and most-blocked open pages", () -> PrivacyChart.show(a)));
+      items.add(new ListPanel.Item("◉", "Blocking statistics", "Totals, most-blocked addresses and daily counts, kept on this device", () -> PrivacyChart.show(a)));
       boolean strip = a.stripTrackingOn();
       ListPanel.Item tracking = new ListPanel.Item("✂", "Remove tracking from links",
           "Removes tracking codes such as utm_source, fbclid and gclid from page addresses.", () -> {
