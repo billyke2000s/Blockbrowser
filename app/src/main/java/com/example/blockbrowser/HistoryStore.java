@@ -94,7 +94,7 @@ final class HistoryStore extends SQLiteOpenHelper {
   }
 
   void recordVisit(String url, String title) {
-    if (readOnly || !UrlTools.isWebUrl(url)) return;
+    if (readOnly || !UrlTools.isWebUrl(url) || HomePage.isHome(url)) return;
     long now = System.currentTimeMillis();
     writer.execute(() -> {
       try {
@@ -157,6 +157,11 @@ final class HistoryStore extends SQLiteOpenHelper {
     List<Entry> found = matching(filter, limit);
     java.util.Collections.sort(found, (a, b) -> Long.compare(b.lastVisit, a.lastVisit));
     return found;
+  }
+
+  /** Most visited pages, for home-page shortcuts. Call off the UI thread. */
+  List<Entry> topSites(int limit) {
+    return query("url NOT LIKE ?", new String[]{HomePage.ORIGIN + "%"}, "visits DESC, last_visit DESC", limit);
   }
 
   List<Entry> forHost(String host, int limit) {

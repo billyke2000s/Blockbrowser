@@ -365,6 +365,20 @@ if adb root >/dev/null 2>&1 && sleep 3 && adb wait-for-device && [ "$(adb shell 
   adb reverse "tcp:$PORT" "tcp:$PORT" >/dev/null   # adbd restarted, so the port forwarding must be set again
 else skip "adb root not available; renderer crash test skipped"; fi
 
+# ---- 10. Block Browser home page ----------------------------------------------------------------------------
+HOME="https://appassets.androidplatform.net/home"
+open_url "$HOME"
+if wait_text home "Ads and trackers blocked" 15; then
+  pass "Home page opens (generated inside the app, no network)"
+  has home text "This session" && has home text "Today" && pass "Home page shows blocking counts (today, this session, all time)" || { fail "Home page blocking counts missing"; diag home-blocked; }
+  dump home2
+  if tap home2 text "or type a URL" contains || tap home2 class "android.widget.EditText"; then
+    sleep 1; adb shell input text "blockbrowser%shome%stest"; adb shell input keyevent KEYCODE_ENTER
+    if wait_text home3 "bing.com" 20 || has home3 text "duckduckgo.com" contains; then pass "Searching from the home page goes to the chosen search engine"
+    else fail "Home page search didn't reach the search engine"; diag home-search; fi
+  else fail "Home page search box not found"; diag home-box; fi
+else fail "Home page didn't load"; diag home; fi
+
 # ---- Screen tour: a screenshot of every screen, for reviewing the design (no pass/fail) ------------------
 mkdir -p "$OUT/tour"
 tshot(){ sleep 2; adb exec-out screencap -p > "$OUT/tour/$1.png" 2>/dev/null || true; }
@@ -388,6 +402,9 @@ if open_menu_item tour-hist "History"; then dump th; tap th text "Delete" && tsh
 dump tf; tap tf text "⋮"; sleep 1; dump tf2; tap tf2 content-desc "Add bookmark" && tshot 16-bookmarked-snackbar
 if open_menu_item tour-find "Find in page"; then adb shell input text "Paragraph"; tshot 17-find-bar; back; back; fi
 open_url "http://localhost:1/unreachable"; sleep 4; tshot 18-error-page
+open_url "https://appassets.androidplatform.net/home"; sleep 4; tshot 19-home
+adb shell input swipe 500 1600 500 400 400; sleep 1; tshot 20-home-scrolled
+if [ "$API" -ge 28 ]; then open_private "https://appassets.androidplatform.net/home"; sleep 6; tshot 21-private-home; back; fi
 echo "Tour screenshots: $(ls "$OUT/tour" | wc -l)"
 
 { echo; echo "Passed: $PASSED"; } >> "$SUMMARY"
