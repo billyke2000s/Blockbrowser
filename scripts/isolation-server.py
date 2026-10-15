@@ -105,6 +105,12 @@ class Handler(BaseHTTPRequestHandler):
             body = ("<!doctype html><html><head><meta name=viewport content='width=device-width'><title>Page %s</title></head>"
                     "<body><h1>Page %s</h1>%s<script>%s</script></body></html>" % (n, n, filler, script)).encode()
             self.send(body)
+        elif url.path == "/reset":
+            with lock:
+                state["hits"] = {}
+                state["scroll"] = {}
+                save()
+            self.send(b"ok")
         elif url.path == "/scroll":
             with lock:
                 state["scroll"][q.get("n", "")] = int(q.get("y", "0") or 0)
