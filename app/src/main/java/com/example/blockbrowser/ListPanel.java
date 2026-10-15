@@ -43,6 +43,8 @@ final class ListPanel {
     Item() {}
     Item(String glyph, CharSequence title, CharSequence subtitle, Runnable click) { this.glyph = glyph; this.title = title; this.subtitle = subtitle; this.click = click; }
     static Item header(String title) { Item i = new Item(); i.header = true; i.title = title; return i; }
+    /** Section heading with a small text button on the right (e.g. "Today ……… Delete"). */
+    static Item header(String title, String action, Runnable r) { Item i = header(title); i.trailing = action; i.click = r; return i; }
   }
 
   interface QueryListener { void onQuery(String query); }
@@ -150,6 +152,26 @@ final class ListPanel {
 
   ListPanel action(String glyph, String description, Runnable r) { actions.addView(iconButton(glyph, description, r)); return this; }
 
+  /** Labelled pill button in the header, so actions say what they do. */
+  ListPanel textAction(String label, String description, Runnable r) {
+    TextView t = new TextView(activity);
+    t.setText(label);
+    t.setTextColor(ACCENT);
+    t.setTextSize(14);
+    t.setTypeface(null, Typeface.BOLD);
+    t.setGravity(Gravity.CENTER);
+    t.setMinHeight(dp(40));
+    t.setPadding(dp(14), 0, dp(14), 0);
+    t.setBackground(new android.graphics.drawable.RippleDrawable(
+        android.content.res.ColorStateList.valueOf(0x3383b9ff), rounded(PANEL, 20), rounded(0xffffffff, 20)));
+    t.setContentDescription(description);
+    t.setOnClickListener(v -> r.run());
+    LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-2, dp(40));
+    lp.setMargins(dp(6), 0, 0, 0);
+    actions.addView(t, lp);
+    return this;
+  }
+
   ListPanel withSearch(String hint, QueryListener listener) {
     search.setHint(hint);
     search.setContentDescription(hint);
@@ -180,6 +202,30 @@ final class ListPanel {
   void dismiss() { if (dialog.isShowing()) dialog.dismiss(); }
   boolean isShowing() { return dialog.isShowing(); }
 
+  private static final Object HEADER_TAG = new Object();
+
+  private LinearLayout newHeader() {
+    LinearLayout h = new LinearLayout(activity);
+    h.setTag(HEADER_TAG);
+    h.setGravity(Gravity.CENTER_VERTICAL);
+    h.setPadding(dp(8), dp(10), dp(4), dp(2));
+    TextView t = new TextView(activity);
+    t.setTextColor(ACCENT);
+    t.setTextSize(13);
+    t.setTypeface(null, Typeface.BOLD);
+    h.addView(t, new LinearLayout.LayoutParams(0, -2, 1));
+    TextView action = new TextView(activity);
+    action.setTextColor(MUTED);
+    action.setTextSize(13);
+    action.setGravity(Gravity.CENTER);
+    action.setMinHeight(dp(40));
+    action.setPadding(dp(12), 0, dp(12), 0);
+    action.setBackground(new android.graphics.drawable.RippleDrawable(
+        android.content.res.ColorStateList.valueOf(0x3383b9ff), null, rounded(0xffffffff, 20)));
+    h.addView(action, new LinearLayout.LayoutParams(-2, dp(40)));
+    return h;
+  }
+
   private final class Adapter extends BaseAdapter {
     @Override public int getCount() { return items.size(); }
     @Override public Object getItem(int i) { return items.get(i); }
@@ -191,13 +237,17 @@ final class ListPanel {
     @Override public View getView(int i, View convert, ViewGroup parent) {
       Item it = items.get(i);
       if (it.header) {
-        TextView t = convert instanceof TextView ? (TextView) convert : new TextView(activity);
+        LinearLayout h = convert instanceof LinearLayout && convert.getTag() == HEADER_TAG ? (LinearLayout) convert : newHeader();
+        TextView t = (TextView) h.getChildAt(0), action = (TextView) h.getChildAt(1);
         t.setText(it.title);
-        t.setTextColor(ACCENT);
-        t.setTextSize(13);
-        t.setTypeface(null, Typeface.BOLD);
-        t.setPadding(dp(18), dp(14), dp(18), dp(6));
-        return t;
+        boolean hasAction = it.trailing != null && it.click != null;
+        action.setVisibility(hasAction ? View.VISIBLE : View.GONE);
+        if (hasAction) {
+          action.setText(it.trailing);
+          action.setContentDescription(it.trailing + " " + it.title);
+          action.setOnClickListener(v -> it.click.run());
+        }
+        return h;
       }
       Row row = convert instanceof Row ? (Row) convert : new Row();
       row.bind(it);

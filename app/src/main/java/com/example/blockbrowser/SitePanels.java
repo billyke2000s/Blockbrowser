@@ -163,7 +163,7 @@ final class SitePanels {
       }
       panel.setItems(items);
     });
-    panel.action("⌫", "Clear all site data", () -> LibraryPanels.confirm(a, "Clear cookies and data for all sites?", "Clear all", () -> {
+    panel.textAction("Clear all", "Clear all site data", () -> LibraryPanels.confirm(a, "Clear cookies and data for all sites?", "Clear all", () -> {
       CookieManager.getInstance().removeAllCookies(null);
       CookieManager.getInstance().flush();
       WebStorage.getInstance().deleteAllData();

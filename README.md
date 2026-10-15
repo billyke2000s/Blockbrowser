@@ -26,7 +26,7 @@ Block Browser is a lightweight Android web browser with built-in ad and tracker 
 
 **Android 8.0 or newer required.**
 
-**Updating:** builds published before the stable signing key was set up were each signed with a different throwaway key, so Android refuses to install a new one over them ("App not installed" or "package conflicts"). Once, uninstall the old version first. To keep your bookmarks, export them before uninstalling (old versions: **⋮ → Export browser data → Bookmarks**, save the text as a `.json` file; new versions: **Bookmarks → ⇅ → Export**) and import the file afterwards in **Bookmarks → ⇅**. Builds signed with the stable key update in place.
+**Updating:** builds published before the stable signing key was set up were each signed with a different throwaway key, so Android refuses to install a new one over them ("App not installed" or "package conflicts"). Once, uninstall the old version first. To keep your bookmarks, export them before uninstalling (old versions: **⋮ → Export browser data → Bookmarks**, save the text as a `.json` file; new versions: **Bookmarks → Import / Export**) and import the file afterwards in **Bookmarks → Import / Export**. Builds signed with the stable key update in place.
 
 ## Using Block Browser
 
