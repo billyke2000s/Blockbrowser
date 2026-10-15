@@ -49,7 +49,19 @@ adb shell run-as "$PKG" cp /data/local/tmp/bb-browser.xml shared_prefs/browser.x
 adb logcat -c
 
 # ---- helpers ----------------------------------------------------------------------------------------
-dump(){ for _ in 1 2 3 4 5; do adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1 && adb pull /sdcard/ui.xml "$OUT/$1.xml" >/dev/null 2>&1 && return 0; sleep 2; done; return 1; }
+dump_raw(){ for _ in 1 2 3 4 5; do adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1 && adb pull /sdcard/ui.xml "$OUT/$1.xml" >/dev/null 2>&1 && return 0; sleep 2; done; return 1; }
+# Emulators often show "<system app> isn't responding" over everything; dismiss it (Wait) whenever it appears.
+dump(){
+  for _ in 1 2 3 4; do
+    dump_raw "$1" || return 1
+    grep -q "isn't responding\|isn&apos;t responding" "$OUT/$1.xml" || return 0
+    echo "Dismissing an emulator 'isn't responding' dialog"
+    local xy; xy=$(find_node "$1" text "Wait"); [ -z "$xy" ] && xy=$(find_node "$1" text "WAIT")
+    [ -n "$xy" ] && adb shell input tap $xy
+    sleep 2
+  done
+  return 0
+}
 shot(){ adb exec-out screencap -p > "$OUT/$1.png" 2>/dev/null || true; }
 # find NAME ATTR VALUE [contains] -> "cx cy" of the first matching node
 find_node(){ python3 - "$OUT/$1.xml" "$2" "$3" "${4:-exact}" <<'PY'
@@ -136,6 +148,7 @@ tap undone content-desc "Done"; sleep 1
 # ---- 3. Session restore after force-stop ---------------------------------------------------------------
 read -r SW SH < <(adb shell wm size | grep -oE '[0-9]+x[0-9]+' | tail -1 | tr 'x' ' ')
 echo "screen ${SW}x${SH}"
+dump pre-scroll >/dev/null   # clears any emulator dialog before swiping
 for _ in 1 2 3; do adb shell input swipe $((SW / 2)) $((SH * 3 / 4)) $((SW / 2)) $((SH / 4)) 300; sleep 1; done
 sleep 3
 adb shell am force-stop "$PKG"; sleep 1
@@ -154,6 +167,7 @@ if has restored content-desc "4 open tabs, switch tabs"; then pass "All 4 tabs r
 
 # ---- 4. Address-bar suggestions -------------------------------------------------------------------------
 adb logcat -c
+dump restored >/dev/null
 tap restored content-desc "Address bar"; sleep 2
 adb shell input text "page"; sleep 4
 SUGG=$(adb logcat -d -s BlockBrowserTest:I | grep "suggestions for 'page'" | tail -1)
