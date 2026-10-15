@@ -131,7 +131,7 @@ open_url "$SITE/page?n=1"; sleep 6
 open_url "$SITE/page?n=2"; sleep 3
 open_url "$SITE/page?n=3"; sleep 4
 if wait_for "all(d['hits'].get(k,0)>=1 for k in ('1','2','3'))" 30; then pass "Opened three pages from other apps, each in a new tab"; else fail "Not all pages loaded: $(json "d['hits']")"; diag tabs; fi
-dump tabs
+for _ in $(seq 1 10); do dump tabs && has tabs content-desc "4 open tabs, switch tabs" && break; sleep 1; done
 if has tabs content-desc "4 open tabs, switch tabs"; then pass "Tab button shows 4 tabs (home + 3)"; else fail "Tab button doesn't show 4 tabs"; diag tabs; fi
 
 # ---- 2. Tab switcher: close and undo --------------------------------------------------------------------
@@ -190,6 +190,7 @@ for _ in $(seq 1 20); do FOUND=$(adb shell ls "/sdcard/Download/$NAME" 2>/dev/nu
 if [ -n "$FOUND" ]; then pass "Downloaded file saved to Downloads"; else fail "Downloaded file not found in /sdcard/Download"; fi
 
 # ---- 6. Site permissions remembered ---------------------------------------------------------------------------
+adb logcat -c
 open_url "$SITE/geo?step=geo1"
 if wait_text geo1 "use your location?" 20; then
   shot 3-location-prompt
@@ -199,7 +200,10 @@ if wait_text geo1 "use your location?" 20; then
     R=$(step_result geo1); [ "$R" != "err1" ] && pass "Allowed: the site got location access (result: $R)" || fail "Site was denied after Allow"
   else fail "Location page never reported"; fi
   open_url "$SITE/geo?step=geo2"; sleep 4; dump geo2
-  if has geo2 text "use your location?" contains; then fail "Asked again although the decision was remembered"; tap_btn geo2 "Allow"
+  if has geo2 text "use your location?" contains; then
+    fail "Asked again although the decision was remembered"
+    echo "  - log: $(adb logcat -d -s BlockBrowserTest:I | grep location | tail -6 | sed 's/^.*BlockBrowserTest: //' | tr '\n' '|')" >> "$SUMMARY"
+    tap_btn geo2 "Allow"
   else pass "The remembered decision was used without asking again"; fi
   wait_step geo2 30 && [ "$(step_result geo2)" != "err1" ] && pass "Second visit got location access" || fail "Second visit result: $(step_result geo2)"
   if [ "$API" -ge 28 ]; then

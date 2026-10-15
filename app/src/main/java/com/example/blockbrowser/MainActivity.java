@@ -1648,6 +1648,7 @@ public class MainActivity extends Activity {
   void handleGeolocationRequest(String rawOrigin, GeolocationPermissions.Callback callback) {
     String origin = originOf(rawOrigin);
     int decision = siteSettings.get(origin, SiteSettings.LOCATION);
+    if (BuildConfig.TEST_LOGS) Log.i("BlockBrowserTest", "location request raw='" + rawOrigin + "' origin='" + origin + "' decision=" + decision + " pending=" + pendingGeo.containsKey(origin));
     if (decision == SiteSettings.BLOCK) { callback.invoke(rawOrigin, false, false); return; }
     if (decision == SiteSettings.ALLOW) { finishGeolocation(rawOrigin, callback); return; }
     ArrayList<GeolocationPermissions.Callback> waiting = pendingGeo.get(origin);
@@ -1661,6 +1662,7 @@ public class MainActivity extends Activity {
         .setTitle("Allow " + UrlTools.display(origin) + " to use your location?")
         .setView(box)
         .setPositiveButton("Allow", (d, n) -> {
+          if (BuildConfig.TEST_LOGS) Log.i("BlockBrowserTest", "location allowed for '" + origin + "' remember=" + remember.isChecked());
           if (remember.isChecked()) siteSettings.set(origin, SiteSettings.LOCATION, SiteSettings.ALLOW);
           ArrayList<GeolocationPermissions.Callback> all = pendingGeo.remove(origin);
           if (all != null) for (GeolocationPermissions.Callback c : all) finishGeolocation(rawOrigin, c);
