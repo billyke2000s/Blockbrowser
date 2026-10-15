@@ -109,6 +109,8 @@ diag(){
   echo "  - on screen [$1]: $(screen_text "diag-$1")" >> "$SUMMARY"
   shot "diag-$1"
 }
+# Android shows a one-time "Viewing full screen" tip over everything; close it if present.
+dismiss_tip(){ dump tip >/dev/null 2>&1 || return 0; has tip text "Viewing full screen" contains && { tap_btn tip "Got it"; sleep 2; }; return 0; }
 dismiss_anr(){ dump anr >/dev/null 2>&1 || return 0; if grep -q "isn't responding\|isn&apos;t responding" "$OUT/anr.xml"; then tap_btn anr "Wait"; sleep 2; fi; }
 dismiss_anr
 
@@ -202,6 +204,7 @@ adb shell am start -n "$PKG/.MainActivity" >/dev/null; sleep 2
 dump menu0; tap menu0 text "⋮"; sleep 2; dump menu1
 if tap menu1 text "Full screen"; then
   sleep 3
+  dismiss_tip
   open_url "$SITE/page?n=6"; sleep 5; dump fs
   if has fs content-desc "Address bar"; then fail "Full screen was lost after navigating"; diag fs; else pass "Full screen stays on when a new page opens"; fi
   adb shell input keyevent KEYCODE_BACK; sleep 2
@@ -210,7 +213,9 @@ if tap menu1 text "Full screen"; then
 else fail "'Full screen' not found in the menu"; diag menu1; fi
 
 # ---- 8. Clear browsing data --------------------------------------------------------------------------------
+dismiss_tip
 open_url "$SITE/login?who=clearme"; wait_for "'clearme' in d['stored']" 20
+dismiss_tip
 dump c0; tap c0 text "⋮"; sleep 2; dump c1
 for _ in 1 2 3 4; do
   has c1 text "Clear browsing data" && break

@@ -1361,7 +1361,14 @@ public class MainActivity extends Activity {
         // Layout can finish after onPageFinished (slower devices, older WebView): retry until the position sticks.
         final int targetY = y;
         for (int delay : new int[]{150, 600, 1200, 2000}) {
-          view.postDelayed(() -> { if (tab.web == view && Math.abs(view.getScrollY() - targetY) > 4 && view.getScrollY() < 4) view.scrollTo(0, targetY); }, delay);
+          view.postDelayed(() -> {
+            if (tab.web != view || view.getScrollY() >= 4) return; // restored, or the user already scrolled
+            view.scrollTo(0, targetY);
+            // Older WebView versions can ignore scrollTo right after loading; ask the page itself (CSS pixels).
+            float scale = view.getScale();
+            int cssY = Math.round(targetY / (scale > 0 ? scale : getResources().getDisplayMetrics().density));
+            view.evaluateJavascript("window.scrollY<4&&window.scrollTo(0," + cssY + ")", null);
+          }, delay);
         }
       }
       if (tab == currentTab()) updateToolbar(tab);
