@@ -133,6 +133,7 @@ public class MainActivity extends Activity {
   volatile Set<String> blocked = new HashSet<>(BUILTIN_BLOCKED);
   volatile boolean listLoaded = false;
   final AtomicLong blockedCount = new AtomicLong();
+  BlockingStats blockingStats;
 
   static final String[] ENGINE_NAMES = {"Google", "Bing", "DuckDuckGo", "Brave Search", "Startpage", "Ecosia", "Yahoo", "Qwant", "Mojeek", "SearXNG"};
   static final String[] ENGINE_URLS = {"https://www.google.com/search?q=", "https://www.bing.com/search?q=", "https://duckduckgo.com/?q=", "https://search.brave.com/search?q=", "https://www.startpage.com/sp/search?query=", "https://www.ecosia.org/search?q=", "https://search.yahoo.com/search?p=", "https://www.qwant.com/?q=", "https://www.mojeek.com/search?q=", "https://searx.be/search?q="};
@@ -306,6 +307,7 @@ public class MainActivity extends Activity {
     blockAds = prefs.getBoolean("adblock", true);
     immersiveRequested = prefs.getBoolean("fullscreen", false);
     siteSettings = createSiteSettings();
+    blockingStats = isPrivate() ? null : new BlockingStats(this);
     loadBlocklist();
     if (!isPrivate()) history().migrateFrom(prefs);
     buildUi();
@@ -444,12 +446,13 @@ public class MainActivity extends Activity {
   void buildFindBar() {
     findBar = new LinearLayout(this);
     findBar.setGravity(Gravity.CENTER_VERTICAL);
-    findBar.setBackgroundColor(PANEL);
-    findBar.setPadding(dp(8), dp(4), dp(4), dp(4));
+    findBar.setBackground(rounded(PANEL, 20));
+    findBar.setPadding(dp(12), dp(6), dp(8), dp(6));
+    findBar.setElevation(dp(6));
     findBar.setVisibility(View.GONE);
     findInput = new EditText(this);
     findInput.setSingleLine(true);
-    findInput.setHint("Find in page");
+    findInput.setHint("Search this page");
     findInput.setContentDescription("Find in page");
     findInput.setTextColor(TEXT);
     findInput.setHintTextColor(MUTED);
@@ -1278,6 +1281,7 @@ public class MainActivity extends Activity {
       if (main && host != null) tab.pageHost = host.toLowerCase(Locale.ROOT);
       if (!shouldBlock(tab, host, main)) return null;
       blockedCount.incrementAndGet();
+      if (blockingStats != null) { blockingStats.record(host); if (blockedCount.get() % 25 == 0) blockingStats.flush(); }
       tab.blocked.incrementAndGet();
       if (main) {
         String html = "<html><head><meta name=viewport content='width=device-width'></head><body style=\"font-family:sans-serif;padding:24px\"><h3>Blocked by Block Browser</h3><p>"
@@ -1962,12 +1966,26 @@ public class MainActivity extends Activity {
   // =====================================================================================================
 
   void searchEngineMenu(Runnable after) {
-    new AlertDialog.Builder(this).setTitle("Search engine").setSingleChoiceItems(ENGINE_NAMES, engine(), (d, i) -> {
-      prefs.edit().putInt("search_engine", i).apply();
-      d.dismiss();
-      toast("Search engine: " + ENGINE_NAMES[i]);
-      if (after != null) after.run();
-    }).setNegativeButton("Cancel", null).show();
+    ListPanel panel = new ListPanel(this, "Choose search engine");
+    java.util.List<ListPanel.Item> choices = new java.util.ArrayList<>();
+    String[] details = {
+      "Google Search", "Microsoft search", "Privacy-focused search", "Independent private search",
+      "Private search results", "Search that plants trees", "Yahoo search", "Privacy-focused search",
+      "Independent search index", "Community-hosted metasearch"
+    };
+    String[] glyphs = {"G", "B", "D", "♜", "S", "E", "Y", "Q", "M", "S"};
+    for (int i = 0; i < ENGINE_NAMES.length; i++) {
+      final int selected = i;
+      ListPanel.Item item = new ListPanel.Item(glyphs[i], ENGINE_NAMES[i], details[i], () -> {
+        prefs.edit().putInt("search_engine", selected).apply();
+        panel.dismiss();
+        if (after != null) after.run();
+      });
+      if (i == engine()) item.trailing = "✓ Selected";
+      choices.add(item);
+    }
+    panel.setItems(choices);
+    panel.show();
   }
 
   void textZoomMenu(Runnable after) {
