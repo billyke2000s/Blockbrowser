@@ -34,6 +34,8 @@ final class Tab {
   String errorUrl;
   /** Host of the page in the main frame; read by request threads for per-site ad blocking. */
   volatile String pageHost = "";
+  /** Videos and video streams the current page has requested, for ⋮ → Download video. */
+  final MediaSniffer.Log media = new MediaSniffer.Log();
   /** Requests blocked on the current page. */
   final AtomicInteger blocked = new AtomicInteger();
   long lastUsed = System.currentTimeMillis();

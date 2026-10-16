@@ -1305,7 +1305,11 @@ public class MainActivity extends Activity {
       boolean main = req.isForMainFrame();
       if (main && HomePage.isHome(req.getUrl().toString())) { tab.pageHost = ""; tab.blocked.set(0); return HomePage.response(MainActivity.this); }
       if (main && host != null) tab.pageHost = host.toLowerCase(Locale.ROOT);
-      if (!shouldBlock(tab, host, main)) return null;
+      if (main) tab.media.clear();
+      if (!shouldBlock(tab, host, main)) {
+        if (!main) tab.media.offer(req.getUrl().toString());
+        return null;
+      }
       blockedCount.incrementAndGet();
       if (blockingStats != null) { blockingStats.record(host); if (blockedCount.get() % 25 == 0) blockingStats.flush(); }
       tab.blocked.incrementAndGet();
@@ -1984,22 +1988,122 @@ public class MainActivity extends Activity {
         .setPositiveButton("Read", (d, n) -> t.web.evaluateJavascript(js, null)).setNegativeButton("Cancel", null).show();
   }
 
+  /**
+   * ⋮ → Download video. Offers the videos the page has requested (streams a player loads piece by piece, and video
+   * files) plus any {@code <video>} with a plain address. HLS streams are downloaded by StreamDownloadService and
+   * saved as MP4; video files go through Android's download manager.
+   */
   void videoDownload() {
     Tab t = currentTab();
     if (t == null || t.web == null) return;
     WebView w = t.web;
+    String agent = w.getSettings().getUserAgentString();
+    String page = t.currentUrl();
     w.evaluateJavascript("(function(){return Array.from(document.querySelectorAll('video')).map(function(v){return v.currentSrc||v.src||(v.querySelector('source')||{}).src}).filter(Boolean)})()", json -> {
+      java.util.LinkedHashMap<String, MediaSniffer.Kind> found = new java.util.LinkedHashMap<>();
+      for (MediaSniffer.Found f : t.media.snapshot()) found.put(f.url, f.kind);
       try {
         JSONArray a = new JSONArray(json);
-        ArrayList<String> urls = new ArrayList<>();
-        for (int i = 0; i < a.length(); i++) { String u = a.optString(i); if (UrlTools.isWebUrl(u)) urls.add(u); }
-        if (urls.isEmpty()) { toastLong("No directly downloadable video found on this page (streamed and protected videos can't be saved)"); return; }
-        new AlertDialog.Builder(this).setTitle("Download video").setItems(urls.toArray(new String[0]),
-            (d, n) -> Downloads.start(this, urls.get(n), w.getSettings().getUserAgentString(), null, "video/mp4", t.currentUrl())).show();
+        for (int i = 0; i < a.length(); i++) {
+          String u = a.optString(i);
+          if (!UrlTools.isWebUrl(u) || found.containsKey(u)) continue; // blob: players are covered by the requests above
+          MediaSniffer.Kind k = MediaSniffer.classify(u);
+          found.put(u, k == null ? MediaSniffer.Kind.FILE : k);
+        }
+      } catch (Exception ignored) {}
+      if (BuildConfig.TEST_LOGS) Log.i("BlockBrowserTest", "video candidates: " + found);
+      if (found.isEmpty()) {
+        toastLong("No video found on this page. Start the video playing, then try again. Copy-protected videos (Netflix and similar) can't be saved.");
+        return;
+      }
+      List<String> urls = new ArrayList<>(found.keySet());
+      if (urls.size() == 1) { downloadVideo(t, urls.get(0), found.get(urls.get(0)), agent, page); return; }
+      String[] labels = new String[urls.size()];
+      for (int i = 0; i < labels.length; i++) labels[i] = videoLabel(urls.get(i), found.get(urls.get(i)));
+      new AlertDialog.Builder(this).setTitle("Download video")
+          .setItems(labels, (d, n) -> downloadVideo(t, urls.get(n), found.get(urls.get(n)), agent, page)).show();
+    });
+  }
+
+  static String videoLabel(String url, MediaSniffer.Kind kind) {
+    String host = UrlTools.host(url);
+    String path = url;
+    int q = path.indexOf('?');
+    if (q >= 0) path = path.substring(0, q);
+    String name = Uri.decode(path.substring(path.lastIndexOf('/') + 1));
+    if (name.length() > 40) name = "…" + name.substring(name.length() - 39);
+    switch (kind) {
+      case HLS: return "Video stream (" + name + ") · " + host;
+      case DASH: return "DASH stream, not supported (" + name + ") · " + host;
+      default: return "Video file " + name + " · " + host;
+    }
+  }
+
+  void downloadVideo(Tab t, String url, MediaSniffer.Kind kind, String agent, String page) {
+    if (kind == MediaSniffer.Kind.FILE) { Downloads.start(this, url, agent, null, "video/mp4", page); return; }
+    if (kind == MediaSniffer.Kind.DASH) {
+      toastLong("This site streams in DASH format, which Block Browser can't download yet");
+      return;
+    }
+    // This window's own cookie for the stream's site (a private window has its own cookie store).
+    String host = UrlTools.host(url);
+    String cookie = CookieManager.getInstance().getCookie(url);
+    String title = t.title;
+    toast("Checking video…");
+    runInBackground(() -> {
+      try {
+        HlsDownload.Http http = new HlsDownload.Http(agent, page, u -> host.equalsIgnoreCase(UrlTools.host(u)) ? cookie : null);
+        HlsPlaylist p = HlsDownload.load(http, url);
+        if (p.encryption != null) throw new HlsDownload.Refused("This video is copy-protected, so it can't be downloaded");
+        if (!p.isMaster) {
+          HlsDownload.check(p);
+          runOnUiThread(() -> startStreamDownload(url, null, title, null, agent, page, host, cookie));
+          return;
+        }
+        List<HlsPlaylist.Variant> qualities = p.qualities();
+        runOnUiThread(() -> {
+          if (qualities.size() == 1) {
+            HlsPlaylist.Variant v = qualities.get(0);
+            HlsPlaylist.Rendition audio = p.audioFor(v);
+            startStreamDownload(v.uri, audio == null ? null : audio.uri, title, v.label(), agent, page, host, cookie);
+            return;
+          }
+          String[] labels = new String[qualities.size()];
+          for (int i = 0; i < labels.length; i++) labels[i] = qualities.get(i).label();
+          new AlertDialog.Builder(this).setTitle("Choose quality").setItems(labels, (d, n) -> {
+            HlsPlaylist.Variant v = qualities.get(n);
+            HlsPlaylist.Rendition audio = p.audioFor(v);
+            startStreamDownload(v.uri, audio == null ? null : audio.uri, title, v.label(), agent, page, host, cookie);
+          }).setNegativeButton("Cancel", null).show();
+        });
+      } catch (HlsDownload.Refused e) {
+        if (BuildConfig.TEST_LOGS) Log.i("BlockBrowserTest", "stream refused: " + e.getMessage());
+        runOnUiThread(() -> toastLong(e.getMessage()));
       } catch (Exception e) {
-        toast("Could not detect video");
+        Log.w("BlockBrowser", "couldn't read video stream", e);
+        runOnUiThread(() -> toastLong("Couldn't read this video stream (" + e.getMessage() + ")"));
       }
     });
+  }
+
+  void startStreamDownload(String video, String audio, String title, String quality, String agent, String page, String host, String cookie) {
+    Runnable go = () -> Downloads.withStorage(this, () -> {
+      try {
+        // A private window passes its own cookie; the service never uses the normal cookie store for it.
+        StreamDownloadService.start(this, video, audio, title, quality, agent, page, isPrivate(), host, isPrivate() ? cookie : null);
+        showSnackbar("Downloading video", "View", () -> Downloads.showPanel(this), null);
+      } catch (Exception e) {
+        toastLong("Couldn't start the download: " + e.getMessage());
+      }
+    });
+    // Android 13+ needs permission to show the download's progress notification; ask once, download either way.
+    if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        && !prefs.getBoolean("asked_notifications", false)) {
+      prefs.edit().putBoolean("asked_notifications", true).apply();
+      requestRuntime(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, granted -> go.run());
+    } else {
+      go.run();
+    }
   }
 
   void printPage() {

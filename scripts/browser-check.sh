@@ -36,7 +36,7 @@ adb install -r "$APK" || { fail "APK install failed"; exit 1; }
 # Let the site's location request reach Block Browser's own prompt instead of Android's.
 adb shell pm grant "$PKG" android.permission.ACCESS_FINE_LOCATION 2>/dev/null
 adb shell pm grant "$PKG" android.permission.ACCESS_COARSE_LOCATION 2>/dev/null
-[ "$API" -le 28 ] && adb shell pm grant "$PKG" android.permission.WRITE_EXTERNAL_STORAGE 2>/dev/null
+[ "$API" -le 28 ] && { adb shell pm grant "$PKG" android.permission.WRITE_EXTERNAL_STORAGE 2>/dev/null; adb shell pm grant "$PKG" android.permission.READ_EXTERNAL_STORAGE 2>/dev/null; }
 
 # Homepage on the local site, so the test doesn't depend on internet access.
 cat > "$OUT/browser.xml" <<EOF

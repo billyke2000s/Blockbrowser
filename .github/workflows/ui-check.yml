@@ -203,9 +203,72 @@ jobs:
           path: browser-check-output/
           if-no-files-found: warn
 
+  # Video-stream (HLS) downloads: test streams made with ffmpeg, served locally, downloaded by the app and the
+  # resulting MP4s checked with ffprobe. Android 9 (old storage rules) and 15 (notification permission, FGS rules).
+  stream-download-check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        api-level: [28, 35]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install Android platform 35
+        run: |
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKMANAGER" --licenses > /dev/null || true
+          "$SDKMANAGER" --install "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Set up Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Build test APK (uitest variant)
+        run: gradle --no-daemon :app:assembleUitest
+
+      - name: Install ffmpeg and make test streams
+        run: |
+          command -v ffmpeg >/dev/null || { sudo apt-get update -q && sudo apt-get install -y -q ffmpeg; }
+          ./scripts/make-test-streams.sh "$PWD/stream-test-files"
+
+      - name: Enable KVM (hardware acceleration for the emulator)
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Run stream download check on emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api-level }}
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
+          profile: pixel_6
+          script: ./scripts/stream-download-check.sh
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stream-download-api-${{ matrix.api-level }}
+          path: stream-check-output/
+          if-no-files-found: warn
+
   # Posts every Android version's results as one PR comment, updated on each run.
   isolation-report:
-    needs: [private-isolation, browser-check]
+    needs: [private-isolation, browser-check, stream-download-check]
     if: always() && github.event_name == 'pull_request'
     runs-on: ubuntu-24.04
     permissions:
@@ -229,7 +292,7 @@ jobs:
             echo "Commit ${{ github.event.pull_request.head.sha }} · [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
             echo
             found=0
-            for f in results/private-isolation-*/summary.md results/browser-check-*/summary.md; do [ -f "$f" ] || continue; found=1; cat "$f"; echo; done
+            for f in results/private-isolation-*/summary.md results/browser-check-*/summary.md results/stream-download-*/summary.md; do [ -f "$f" ] || continue; found=1; cat "$f"; echo; done
             [ "$found" = 1 ] || echo "No results were produced. Check the emulator jobs."
           } > comment.md
           ID=$(gh api "repos/$REPO/issues/$PR/comments?per_page=100" --jq "[.[]|select(.body|startswith(\"$MARKER\"))][0].id // empty")

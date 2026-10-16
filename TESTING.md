@@ -9,6 +9,7 @@
 | Unit tests (URL handling, suggestion ranking, bookmark import/export, suggestion parsing) | `app/src/test/` via `gradle :app:testDebugUnitTest` in `.github/workflows/android.yml` | Every push to `main` and every pull request |
 | Search-suggestion endpoints still answer | `scripts/check-suggest-endpoints.sh` in `.github/workflows/android.yml` (warnings only) | Same as unit tests |
 | Browser behaviour on emulator | `.github/workflows/ui-check.yml` (job `browser-check`) → `scripts/browser-check.sh` | Same as the UI check |
+| Video stream downloads on emulator | `.github/workflows/ui-check.yml` (job `stream-download-check`) → `scripts/stream-download-check.sh` | Same as the UI check |
 | Private browsing isolation | `.github/workflows/ui-check.yml` (job `private-isolation`) → `scripts/private-isolation-check.sh` | Same as the UI check |
 
 The UI check builds the APK and runs it on Android 10 (API 29) and Android 15 (API 35) emulators. It checks that:
@@ -55,13 +56,27 @@ Results for every Android version, including what was on screen when a check fai
 
 The `uitest` variant also logs suggestion lists and location decisions under the `BlockBrowserTest` tag (`BuildConfig.TEST_LOGS`); published builds don't.
 
+## Video stream downloads
+
+Unit tests (`HlsPlaylistTest`, `HlsDownloadTest`, `MediaSnifferTest`, `StreamJobsTest`) cover playlist parsing, choosing qualities and separate audio, joining pieces in order, retries, byte ranges, redirects, cookies, refusing encrypted and live streams, and the Downloads-screen records. `HlsDownloadTest` runs the downloader against a small in-memory web server.
+
+`scripts/stream-download-check.sh` runs on Android 9 (API 28) and 15 (API 35) emulators with the `uitest` build. `scripts/make-test-streams.sh` makes 12-second test streams with ffmpeg (MPEG-TS with two qualities, fragmented MP4 with separate audio, one file with byte ranges, AES-128 encrypted, live), and `scripts/stream-server.py` serves them with pages that load the stream from a script, like a web player. The test checks that:
+1. ⋮ → Download video offers both qualities; the chosen one is downloaded completely and the other not at all.
+2. Each kind is saved to Downloads as an MP4 that ffprobe reads as H.264 video plus AAC audio, at the right width, 12 seconds long (separate audio is combined).
+3. Byte-range pieces are fetched with Range headers, and stream requests carry the site's sign-in cookie.
+4. Encrypted and live streams are refused and nothing is saved.
+5. A private-window download doesn't send the normal window's cookie, and its address isn't stored on disk.
+6. The Downloads screen lists the video with its quality, and Android shows a "Download complete" notification (checked on Android 13+).
+
+To try the downloader against the test streams on a computer: `./scripts/make-test-streams.sh /tmp/streams`, then `python3 scripts/stream-server.py 8766 /tmp/requests.json /tmp/streams` and open `http://localhost:8766/watch?s=ts`.
+
 ## Not covered automatically
 Check these by hand on a phone after changes in those areas:
 - Ad blocking: open https://adblock.turtlecute.org and compare the score with the previous build.
 - Video full screen (a site's own full-screen button, e.g. YouTube).
 - The floating fullscreen control's tap-to-reveal and exit behaviour (the automated test leaves fullscreen with Back).
 - Search engine selection, persistence after restart and searches from the address bar.
-- ⋮ → Download video detection on direct video URLs, download completion and file playback inside/outside the app.
+- ⋮ → Download video on real sites (stream detection depends on how each site's player loads video), cancelling a stream download from its notification, and playing downloaded files inside/outside the app.
 - Adblock preference persistence and session privacy counts.
 - Desktop-site and dark-websites toggles (Android 10+), plus edge-swipe navigation.
 - Picture-in-picture for full-screen video (leave the app while a video plays full screen).
