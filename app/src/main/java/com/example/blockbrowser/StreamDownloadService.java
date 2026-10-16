@@ -124,18 +124,18 @@ public class StreamDownloadService extends Service {
           ? url -> cookieHost != null && cookieHost.equalsIgnoreCase(UrlTools.host(url)) ? cookie : null
           : url -> { try { return CookieManager.getInstance().getCookie(url); } catch (Exception e) { return null; } };
       HlsDownload.Http http = new HlsDownload.Http(job.userAgent, job.referer, cookies);
-      notify(progressNotification(job.title, "Starting", 0, 0, job.id));
+      showProgress(progressNotification(job.title, "Starting", 0, 0, job.id));
       HlsDownload.Result r = HlsDownload.download(http, job.video, job.audio, work, new HlsDownload.Listener() {
         @Override public void progress(int done, int total, long bytes) {
           job.piecesDone = done;
           job.piecesTotal = total;
           job.bytes = bytes;
           StreamJobs.save(filesDir, job);
-          notify(progressNotification(job.title, Formatter.formatShortFileSize(StreamDownloadService.this, bytes), done, total, job.id));
+          showProgress(progressNotification(job.title, Formatter.formatShortFileSize(StreamDownloadService.this, bytes), done, total, job.id));
         }
         @Override public boolean cancelled() { return stopAll || cancelId == job.id; }
       });
-      notify(progressNotification(job.title, "Saving video", 0, 0, job.id));
+      showProgress(progressNotification(job.title, "Saving video", 0, 0, job.id));
       File mp4 = new File(work, "out.mp4");
       Uri uri;
       try {
@@ -230,7 +230,7 @@ public class StreamDownloadService extends Service {
     else startForeground(FOREGROUND_ID, n);
   }
 
-  private void notify(Notification n) {
+  private void showProgress(Notification n) {
     NotificationManager nm = getSystemService(NotificationManager.class);
     try { if (nm != null) nm.notify(FOREGROUND_ID, n); } catch (SecurityException ignored) {}
   }
