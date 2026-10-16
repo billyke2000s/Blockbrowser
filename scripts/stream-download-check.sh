@@ -106,11 +106,13 @@ diag(){
   [ -n "$crash" ] && { echo "::error::[$1] crash log:%0A$crash"; echo "  - crash: $(echo "$crash" | sed 's/%0A/ ⏎ /g' | head -c 600)" >> "$SUMMARY"; }
   dump "diag-$1" >/dev/null 2>&1
   echo "  - on screen [$1]: $(screen_text "diag-$1")" >> "$SUMMARY"
-  echo "  - app log: $(adb logcat -d -s BlockBrowserStream:* BlockBrowserTest:I BlockBrowser:W | tail -6 | sed 's/^.*: //' | tr '\n' '|' | head -c 900)" >> "$SUMMARY"
+  echo "  - app log: $(adb logcat -d -s BlockBrowserStream:* BlockBrowserTest:I BlockBrowser:W | grep -vE '^\s*$|^-+ beginning|\sat ' | tail -8 | sed 's/^[^:]*: //' | tr '\n' '|' | head -c 1500)" >> "$SUMMARY"
   shot "diag-$1"
 }
 open_menu_item(){ # $1 = dump prefix, $2 = menu label
   dump "$1-a"; tap "$1-a" text "⋮"; sleep 2; dump "$1-b"
+  # A window that has only just opened can miss the first tap; tap again if the menu isn't showing.
+  if ! has "$1-b" text "Bookmarks" && ! has "$1-b" text "$2"; then sleep 2; dump "$1-a"; tap "$1-a" text "⋮"; sleep 2; dump "$1-b"; fi
   for _ in 1 2 3 4; do
     has "$1-b" text "$2" && break
     read -r SX SY EY < <(scroll_list "$1-b") || true

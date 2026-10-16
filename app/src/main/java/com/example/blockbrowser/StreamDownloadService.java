@@ -137,21 +137,25 @@ public class StreamDownloadService extends Service {
       });
       showProgress(progressNotification(job.title, "Saving video", 0, 0, job.id));
       File mp4 = new File(work, "out.mp4");
-      Uri uri;
+      File toSave;
       try {
         StreamRemuxer.toMp4(r.video, r.audio, mp4);
-        uri = Downloads.saveFile(this, mp4, job.title, "video/mp4");
-        job.size = mp4.length();
+        toSave = mp4;
       } catch (IOException convert) {
         Log.w(TAG, "MP4 conversion failed; saving the stream as downloaded", convert);
         if (r.audio != null) throw new IOException("couldn't combine the video and audio (" + convert.getMessage() + ")");
         // Joined fragmented-MP4 pieces already are an MP4; joined MPEG-TS pieces play in most video apps.
-        boolean fmp4 = r.videoFragmentedMp4;
-        job.mime = fmp4 ? "video/mp4" : "video/mp2t";
-        job.title = fmp4 ? job.title : job.title.replaceAll("\\.mp4$", ".ts");
-        uri = Downloads.saveFile(this, r.video, job.title, job.mime);
-        job.size = r.video.length();
+        toSave = r.video;
+        if (!r.videoFragmentedMp4) { job.mime = "video/mp2t"; job.title = job.title.replaceAll("\\.mp4$", ".ts"); }
       }
+      Uri uri;
+      try {
+        uri = Downloads.saveFile(this, toSave, job.title, job.mime);
+      } catch (IOException | RuntimeException save) {
+        Log.w(TAG, "saving to Downloads failed", save);
+        throw new IOException("couldn't save to Downloads (" + save.getMessage() + ")");
+      }
+      job.size = toSave.length();
       job.resultUri = uri.toString();
       job.status = StreamJobs.DONE;
       job.error = null;
