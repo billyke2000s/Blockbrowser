@@ -7,6 +7,7 @@
 - **Block Browser home page** replaces google.com as the start and new-tab page: search box (chosen engine, Google by default; typed addresses open directly), most-visited shortcuts, blocked counts for today / this session / all time, a 7-day chart and the most-blocked domains, with a link to the full statistics. Generated inside the app with no network access and no JavaScript bridge. A purple version in private windows shows no history or saved statistics. Existing custom homepages are kept.
 
 ### Fixed
+- **Saving files on Android 8–9**: the app asked only for permission to write to storage, but those versions make the shared Downloads folder writable only for apps holding both read and write permission. It now asks for both. (Found by the new stream-download test on Android 9.)
 - **Duplicate tabs**: when Android recreated the browser (after closing it in the background, or when reopened from recent apps), the link that originally opened it was opened again in an extra tab.
 - **Failed pages** were saved to history and shown in tabs as "Webpage not available".
 - **Blocking statistics** screen ran under the status bar and had no back button.

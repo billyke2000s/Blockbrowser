@@ -35,7 +35,12 @@ adb reverse "tcp:$PORT" "tcp:$PORT" || { fail "adb reverse failed"; exit 1; }
 sleep 15
 adb uninstall "$PKG" >/dev/null 2>&1
 adb install -r "$APK" || { fail "APK install failed"; exit 1; }
-[ "$API" -le 28 ] && adb shell pm grant "$PKG" android.permission.WRITE_EXTERNAL_STORAGE 2>/dev/null
+# Android 8-9: grant both storage permissions, as the app's own prompt does (granting only "write" leaves the
+# shared folder read-only for the app).
+if [ "$API" -le 28 ]; then
+  adb shell pm grant "$PKG" android.permission.WRITE_EXTERNAL_STORAGE || fail "Couldn't grant the write-storage permission"
+  adb shell pm grant "$PKG" android.permission.READ_EXTERNAL_STORAGE || fail "Couldn't grant the read-storage permission"
+fi
 adb shell rm -f "/sdcard/Download/Clip-*" 2>/dev/null
 
 # Homepage on the local site, so the test doesn't depend on internet access.

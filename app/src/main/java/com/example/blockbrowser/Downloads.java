@@ -98,14 +98,19 @@ final class Downloads {
     while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
   }
 
-  /** Android 8-9 need the storage permission to save into the shared Downloads folder. */
+  /**
+   * Android 8-9 need the storage permission to save into the shared Downloads folder. Both read and write: the
+   * system only gives an app a writable view of shared storage when it holds both.
+   */
   static void withStorage(MainActivity a, Runnable then) {
-    if (Build.VERSION.SDK_INT >= 29 || a.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
+    if (Build.VERSION.SDK_INT >= 29
+        || (a.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
+            && a.checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED)) {
       then.run();
       return;
     }
-    a.requestRuntime(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, granted -> {
-      if (granted[0]) then.run();
+    a.requestRuntime(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.READ_EXTERNAL_STORAGE}, granted -> {
+      if (granted[0] && granted[1]) then.run();
       else a.toastLong("Block Browser needs storage permission to save downloads on this Android version");
     });
   }
