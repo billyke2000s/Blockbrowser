@@ -10,6 +10,11 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <!-- Android 8-9 need it to save downloads in the shared Downloads folder. -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
+    <!-- Video-stream downloads run as a foreground service with a progress notification (StreamDownloadService). -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <!-- Android 13+: asked the first time a video stream is downloaded, to show its progress. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- A browser hands links to other apps (intent:, mailto:, app links) and must be able to tell which app can open them. -->
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" tools:ignore="QueryAllPackagesPermission" />
 
@@ -54,5 +59,10 @@
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode" />
 
         <activity android:name=".VideoPlayerActivity" android:exported="false" />
+
+        <service
+            android:name=".StreamDownloadService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
     </application>
 </manifest>

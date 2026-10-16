@@ -35,7 +35,7 @@ Block Browser is a lightweight Android web browser with built-in ad and tracker 
 - **Tabs:** tap the square with the tab count.
 - **Site information:** tap 🔒 or ⚠ at the left of the address bar to see the connection, blocked trackers, permissions and site data.
 - **Settings:** **⋮ → Settings** for the search engine, search suggestions, homepage, text size and darkening; **⋮ → Privacy and security** for ad blocking, tracking-parameter removal, third-party cookies and site settings.
-- **Download a video:** open a page with a directly accessible video, then **⋮ → Download video**.
+- **Download a video:** start the video playing, then **⋮ → Download video**. If the page has several, pick one; for streams with several qualities, pick the quality. Streams are downloaded in the background with a progress notification and saved to Downloads as an MP4.
 - **Full screen:** **⋮ → Full screen**. The floating control fades after three seconds; tap its position to show it, then tap to exit. Back also exits.
 
 ## Private browsing
@@ -60,7 +60,7 @@ The blocklist combines [StevenBlack's hosts](https://github.com/StevenBlack/host
 
 Domain filtering is not the same as full content filtering: first-party advertisements, some embedded ads and certain video ads may still appear. If a website fails to load correctly, try temporarily disabling ad blocking.
 
-Video downloading works with discoverable, directly accessible media URLs. Protected streams, DRM video and some streaming-site playback formats cannot be downloaded by this feature.
+Video downloading works with plain video files and with **HLS streams** (`.m3u8`), the format most news, sports and social sites use for video players; Block Browser catches the stream as the page plays it, downloads every piece and saves one MP4 (combining separate video and audio tracks). It can't download: **copy-protected video** (Netflix, Disney+, Prime Video and other DRM, or encrypted HLS), **live streams**, **DASH streams** (`.mpd`), or **YouTube** (deliberately not supported). Downloading may be against a site's terms; only save videos you have the right to.
 
 ## Known limitations
 

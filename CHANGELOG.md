@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- **Video stream downloads (HLS).** ⋮ → Download video now finds videos that players load as streams (`.m3u8`), not only plain `<video>` files: the browser notes video requests as the page plays. Pick a quality, and the stream is downloaded in the background (progress notification with Cancel), its pieces joined and converted to MP4 without re-encoding (separate video and audio tracks are combined), and saved to Downloads. Stream downloads appear on the Downloads screen with progress, open, share, retry, cancel and delete. Encrypted/DRM and live streams are refused; DASH isn't supported yet. Private-window stream downloads only send that window's cookie for the video's site, and their addresses aren't stored.
 - **Block Browser home page** replaces google.com as the start and new-tab page: search box (chosen engine, Google by default; typed addresses open directly), most-visited shortcuts, blocked counts for today / this session / all time, a 7-day chart and the most-blocked domains, with a link to the full statistics. Generated inside the app with no network access and no JavaScript bridge. A purple version in private windows shows no history or saved statistics. Existing custom homepages are kept.
 
 ### Fixed
