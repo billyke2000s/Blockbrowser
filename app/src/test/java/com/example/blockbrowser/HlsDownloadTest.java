@@ -5,17 +5,21 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import com.sun.net.httpserver.HttpServer;
-
+import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.net.InetSocketAddress;
+import java.net.InetAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.Test;
@@ -23,44 +27,72 @@ import org.junit.Test;
 /** Runs the stream downloader against a small in-memory web server. */
 public class HlsDownloadTest {
 
-  /** Serves fixed files; answers 503 to the first request for "flaky" files, and honours Range headers. */
+  /**
+   * A tiny web server on a plain socket (the JDK's com.sun.net.httpserver isn't available to Android unit tests).
+   * Serves fixed files; answers 503 to the first request for "flaky" files, redirects /moved.m3u8, honours Range.
+   */
   static final class Server implements AutoCloseable {
-    final HttpServer http;
+    final ServerSocket socket;
     final Map<String, byte[]> files = new ConcurrentHashMap<>();
     final Map<String, String> cookies = new ConcurrentHashMap<>();
     final AtomicInteger flakyFailures = new AtomicInteger();
     final String base;
+    final ExecutorService pool = Executors.newCachedThreadPool();
 
     Server() throws IOException {
-      http = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
-      http.createContext("/", ex -> {
-        String path = ex.getRequestURI().getPath();
-        cookies.put(path, String.valueOf(ex.getRequestHeaders().getFirst("Cookie")));
-        if (path.equals("/moved.m3u8")) { ex.getResponseHeaders().add("Location", "/sub/media.m3u8"); ex.sendResponseHeaders(302, -1); ex.close(); return; }
-        if (path.contains("flaky") && flakyFailures.getAndIncrement() == 0) { ex.sendResponseHeaders(503, -1); ex.close(); return; }
+      socket = new ServerSocket(0, 50, InetAddress.getByName("127.0.0.1"));
+      base = "http://127.0.0.1:" + socket.getLocalPort();
+      pool.execute(() -> {
+        while (!socket.isClosed()) {
+          try { Socket c = socket.accept(); pool.execute(() -> handle(c)); } catch (IOException e) { return; }
+        }
+      });
+    }
+
+    private void handle(Socket c) {
+      try (Socket conn = c) {
+        BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.ISO_8859_1));
+        String requestLine = in.readLine();
+        if (requestLine == null) return;
+        String path = requestLine.split(" ")[1];
+        int q = path.indexOf('?');
+        if (q >= 0) path = path.substring(0, q);
+        String range = null, cookie = null, line;
+        while ((line = in.readLine()) != null && !line.isEmpty()) {
+          int colon = line.indexOf(':');
+          if (colon < 0) continue;
+          String name = line.substring(0, colon).trim().toLowerCase(java.util.Locale.ROOT), value = line.substring(colon + 1).trim();
+          if (name.equals("range")) range = value;
+          if (name.equals("cookie")) cookie = value;
+        }
+        cookies.put(path, String.valueOf(cookie));
+        OutputStream out = conn.getOutputStream();
+        if (path.equals("/moved.m3u8")) { respond(out, "302 Found", "Location: /sub/media.m3u8\r\n", new byte[0]); return; }
+        if (path.contains("flaky") && flakyFailures.getAndIncrement() == 0) { respond(out, "503 Unavailable", "", new byte[0]); return; }
         byte[] body = files.get(path);
-        if (body == null) { ex.sendResponseHeaders(404, -1); ex.close(); return; }
-        String range = ex.getRequestHeaders().getFirst("Range");
-        int code = 200;
+        if (body == null) { respond(out, "404 Not Found", "", new byte[0]); return; }
         if (range != null && range.startsWith("bytes=")) {
           String[] r = range.substring(6).split("-", -1);
           int from = Integer.parseInt(r[0]);
           int to = r[1].isEmpty() ? body.length - 1 : Integer.parseInt(r[1]);
           byte[] part = new byte[to - from + 1];
           System.arraycopy(body, from, part, 0, part.length);
-          body = part;
-          code = 206;
+          respond(out, "206 Partial Content", "", part);
+        } else {
+          respond(out, "200 OK", "", body);
         }
-        ex.sendResponseHeaders(code, body.length);
-        try (OutputStream o = ex.getResponseBody()) { o.write(body); }
-      });
-      http.start();
-      base = "http://127.0.0.1:" + http.getAddress().getPort();
+      } catch (IOException ignored) {}
+    }
+
+    private static void respond(OutputStream out, String status, String headers, byte[] body) throws IOException {
+      out.write(("HTTP/1.1 " + status + "\r\n" + headers + "Content-Length: " + body.length + "\r\nConnection: close\r\n\r\n").getBytes(StandardCharsets.ISO_8859_1));
+      out.write(body);
+      out.flush();
     }
 
     void put(String path, String text) { files.put(path, text.getBytes(StandardCharsets.UTF_8)); }
     void put(String path, byte[] data) { files.put(path, data); }
-    @Override public void close() { http.stop(0); }
+    @Override public void close() throws IOException { socket.close(); pool.shutdownNow(); }
   }
 
   private static File tempDir() throws IOException { return Files.createTempDirectory("hls-test").toFile(); }
