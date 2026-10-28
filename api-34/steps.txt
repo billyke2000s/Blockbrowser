@@ -1,0 +1,2 @@
+== 00:54:09 opening home page
+== 00:54:09 adb state: device

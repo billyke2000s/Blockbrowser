@@ -1,0 +1,58 @@
+### Browser check — Android API 34
+- ✅ Opened three pages from other apps, each in a new tab
+- ✅ Tab button shows 4 tabs (home + 3)
+- ✅ Tab switcher lists the tabs with the current one marked
+- ❌ Close/Undo bar not as expected
+  - on screen [closed]: 3 tabs · + · ⋮ · Done · Tab: Page home · Page home · × · localhost:8765/page?n=home · Tab: Page 1 · Page 1 · Current tab: Page 3 · Page 3
+  - process events: closing lmkd data connection|Service 'exec 23 (/system/bin/lmkd --reinit)' (pid 5449) exited with status 0 oneshot service took 0.047000 seconds in background|Sending signal 9 to service 'exec 23 (/system/bin/lmkd --reinit)' (pid 5449) process group...|fg  BTOP|fg  BTOP|fg  SVC |
+  - in front: topResumedActivity=ActivityRecord{5a686f0 u0 com.example.blockbrowser/.MainActivity t8}
+  - task log: top=128 bottom=63 keyboard=0 fullscreen=false|main process removed 0 leftover private entries|5504|5567|5742|
+- ❌ Undo did not restore the tab as expected
+  - on screen [undone]: 3 tabs · + · ⋮ · Done · Tab: Page home · Page home · × · localhost:8765/page?n=home · Tab: Page 1 · Page 1 · Current tab: Page 3 · Page 3
+  - process events: closing lmkd data connection|Service 'exec 23 (/system/bin/lmkd --reinit)' (pid 5449) exited with status 0 oneshot service took 0.047000 seconds in background|Sending signal 9 to service 'exec 23 (/system/bin/lmkd --reinit)' (pid 5449) process group...|fg  BTOP|fg  BTOP|fg  SVC |
+  - in front: topResumedActivity=ActivityRecord{5a686f0 u0 com.example.blockbrowser/.MainActivity t8}
+  - task log: top=128 bottom=63 keyboard=0 fullscreen=false|main process removed 0 leftover private entries|5504|5567|5742|
+  - restore log: scroll restore target=2028 now=2028 attempts=1 done contentHeight=7015|
+- ✅ After restart the selected tab (Page 3) reloaded at its scroll position (y=773)
+- ✅ Other restored tabs were not reloaded until opened (lazy restore)
+- ❌ Tab count wrong after restart
+  - on screen [restored]: ⌂ · ⚠ · http://localhost:8765/page?n=3 · 3 · ⋮ · Page 3 · Paragraph 0 of page 3. · Paragraph 1 of page 3. · Paragraph 2 of page 3. · Paragraph 3 of page 3. · Paragraph 4 of page 3. · Paragraph 5 of page 3. · Paragraph 6 of page 3. · Paragraph 7 of page 3. · Paragraph 8 of page 3. · Paragraph 9 of page 3. · Paragraph 10 of page 3. · Paragraph 11 of page 3. · Paragraph 12 of page 3. · Paragraph 13 of page 3. · Paragraph 14 of page 3. · Paragraph 15 of page 3. · Paragraph 16 of page 3. · Paragraph 17 of page 3. · Paragraph 18 of page 3. · Paragraph 19 of page 3. · Paragraph 20 of page 3. · Paragraph 21 of page 3. · Paragraph 22 of page 3. · Paragraph 23 of page 3. · Paragraph 24 of page 3. · Paragraph 25 of page 3. · Paragraph 26 of page 3. · Paragraph 27 of page 3. · Paragraph 28 of page 3. · Paragraph 29 of page 3. · Paragraph 30 of page 3. · Paragraph 31 of page 3. · Paragraph 32 of page 3. · Paragraph 33 of page 3. · Paragraph 34 of page 3. · Paragraph 35 of page 3. · Paragraph 36 of page 3. · Paragraph 37 of page 3. · Paragraph 38 of page 3.
+  - process events: Sending signal 9 to service 'exec 23 (/system/bin/lmkd --reinit)' (pid 5449) process group...|fg  BTOP|fg  BTOP|fg  SVC |from pid 7048|stop com.example.blockbrowser due to from pid 7048|
+  - in front: topResumedActivity=ActivityRecord{635f919 u0 com.example.blockbrowser/.MainActivity t9}
+  - task log: top=128 bottom=63 keyboard=0 fullscreen=false|+1s96ms|top=128 bottom=63 keyboard=0 fullscreen=false|scroll restore target=2028 now=2028 attempts=1 done contentHeight=7015|main process removed 0 leftover private entries|
+- ❌ History suggestions missing: none
+- ✅ Download request carried the site's login cookie
+- ✅ Downloaded file saved to Downloads
+- ✅ Website location request shows Block Browser's prompt
+- ✅ Allowed: the site got location access (result: err3)
+- ✅ The remembered decision was used without asking again
+- ✅ Second visit got location access
+- ✅ Private window asks again (normal 'Allow' decisions aren't carried over)
+- ✅ Blocking in private denied the site
+- ✅ Full screen stays on when a new page opens
+- ✅ Clearing browsing data removed cookies and site storage
+- ✅ History cleared
+- ✅ Choosing DuckDuckGo in Settings saves it
+- ✅ Settings screen shows the chosen engine
+- ❌ Search didn't go to DuckDuckGo
+  - crash: 10-28 00:46:01.826  7785  7798 E AndroidRuntime: FATAL EXCEPTION: UiAutomation ⏎ 10-28 00:46:01.826  7785  7798 E AndroidRuntime: java.lang.RuntimeException: Bad file descriptor ⏎ 10-28 00:46:01.826  7785  7798 E AndroidRuntime: java.lang.RuntimeException: Bad file descriptor ⏎ 10-28 00:46:01.826  7785  7798 E AndroidRuntime: 	at com.android.internal.os.RuntimeInit$KillApplicationHandler.uncaughtException(RuntimeInit.java:160) ⏎ 10-28 00:46:01.826  7785  7798 E AndroidRuntime: 	at java.lang.ThreadGroup.uncaughtException(ThreadGroup.java:1071) ⏎ 10-28 00:46:01.826  7785  7798 E Androi
+  - on screen [search]: ⌂ · ⚠ · b · 10 · ⋮ · Check after-clear
+  - process events: lmkd updated properties successfully|lmkd data connection dropped|closing lmkd data connection|Service 'exec 24 (/system/bin/lmkd --reinit)' (pid 8215) exited with status 0 oneshot service took 0.052000 seconds in background|Sending signal 9 to service 'exec 24 (/system/bin/lmkd --reinit)' (pid 8215) process group...|cch+5 CEM |
+  - in front: topResumedActivity=ActivityRecord{635f919 u0 com.example.blockbrowser/.MainActivity t9}
+  - task log: START u0 {flg=0x10000000 cmp=com.example.blockbrowser/.MainActivity} with LAUNCH_SINGLE_TASK from uid 2000 (BAL_ALLOW_PERMISSION) result code=3|private process running; leaving its data alone|top=128 bottom=63 keyboard=883 fullscreen=false|top=128 bottom=63 keyboard=883 fullscreen=false|3:b | |
+- ✅ Search engine in the menu lists all 10 engines
+- ✅ Choosing Bing from the menu's list works
+- ✅ Ad-blocking switch in Privacy and security works
+- ✅ Tapping a history entry opens the page
+- ✅ Home page opens (generated inside the app, no network)
+- ✅ Home page shows blocking counts (today, this session, all time)
+- ❌ Home page search box not found
+  - crash: 10-28 00:46:01.826  7785  7798 E AndroidRuntime: FATAL EXCEPTION: UiAutomation ⏎ 10-28 00:46:01.826  7785  7798 E AndroidRuntime: java.lang.RuntimeException: Bad file descriptor ⏎ 10-28 00:46:01.826  7785  7798 E AndroidRuntime: java.lang.RuntimeException: Bad file descriptor ⏎ 10-28 00:46:01.826  7785  7798 E AndroidRuntime: 	at com.android.internal.os.RuntimeInit$KillApplicationHandler.uncaughtException(RuntimeInit.java:160) ⏎ 10-28 00:46:01.826  7785  7798 E AndroidRuntime: 	at java.lang.ThreadGroup.uncaughtException(ThreadGroup.java:1071) ⏎ 10-28 00:46:01.826  7785  7798 E Androi
+  - on screen [home-box]: ⌂ · ⛨ · Search or enter URL · 13 · ⋮ · New tab · Block Browser · Most visited · Ads and trackers blocked · 0 · Today · This session · All time · Last 7 days · Blocked requests per day for the last 7  · All blocking statistics · Browse as usual: ads and trackers Block  · Protecting against 215,493 known ad, tra
+  - process events: lmkd updated properties successfully|lmkd data connection dropped|closing lmkd data connection|Service 'exec 24 (/system/bin/lmkd --reinit)' (pid 8215) exited with status 0 oneshot service took 0.052000 seconds in background|Sending signal 9 to service 'exec 24 (/system/bin/lmkd --reinit)' (pid 8215) process group...|cch+5 CEM |
+  - in front: topResumedActivity=ActivityRecord{635f919 u0 com.example.blockbrowser/.MainActivity t9}
+  - task log: private process running; leaving its data alone|START u0 {act=android.intent.action.VIEW dat=https://appassets.androidplatform.net/... flg=0x10000000 cmp=com.example.blockbrowser/.MainActivity} with LAUNCH_SINGLE_TASK from uid 2000 (BAL_ALLOW_PERMISSION) result code=3|top=128 bottom=63 keyboard=0 fullscreen=false|top=128 bottom=63 keyboard=0 fullscreen=false|private process running; leaving its data alone|
+- ✅ App kept running when the page renderer was killed
+- ✅ Renderer loss was handled (tab rebuilt with an error page)
+
+Passed: 26
