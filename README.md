@@ -32,76 +32,44 @@ Private windows, smart tabs, HLS video downloads and a clean dark interface — 
 
 <table>
 <tr>
-<td width="50%" valign="top">
-
-### 🛡️ Ad & tracker blocking
-Requests to about **215,000** known advertising, tracking and malicious domains (and their subdomains) are stopped before they leave your phone. Turn it off for a single site from the site information button if the site breaks.
-
-</td>
-<td width="50%" valign="top">
-
-### 🕶️ Private windows
-A separate process with its own cookies and storage, **deleted when the window closes** — even after a crash or force-stop. [More ↓](#%EF%B8%8F-private-browsing)
-
-</td>
+<td width="50%" valign="top">🛡️ <b>Ad & tracker blocking</b><br><sub>215,000+ domains blocked, on or off per site</sub></td>
+<td width="50%" valign="top">🕶️ <b>Private windows</b><br><sub>Isolated, and wiped when you close them</sub></td>
 </tr>
 <tr>
-<td valign="top">
-
-### 🏠 Home page
-Block Browser's own start and new-tab page: a search box (your chosen engine, Google by default), shortcuts to your most visited sites, and how many ads and trackers were blocked today, this session and in total, with a 7-day chart and the most-blocked domains. Built into the app — never loaded from the internet. **Settings → Homepage** can switch to any other address.
-
-</td>
-<td valign="top">
-
-### 🔎 Smart address bar
-Suggestions from your bookmarks and history with titles and site icons, ranked by how well the address matches and how often and recently you visited. Optional suggestions from your search engine (**off by default**). Ten search engines to choose from.
-
-</td>
+<td valign="top">🏠 <b>Home page</b><br><sub>Search, top sites and your blocking stats</sub></td>
+<td valign="top">🔎 <b>Smart address bar</b><br><sub>Suggestions from bookmarks and history</sub></td>
 </tr>
 <tr>
-<td valign="top">
-
-### 🗂️ Tabs
-A grid of open tabs with page previews: swipe or tap × to close, Undo, drag to reorder, duplicate, close others or all. Links from other apps open in a new tab. Tabs are restored after a restart and only load when you open them.
-
-</td>
-<td valign="top">
-
-### 🎬 Video downloads
-Plain video files and **HLS streams** (`.m3u8`) — the format most news, sports and social sites use. Pick a quality and it downloads in the background, saved as one MP4. Built-in player with **aspect-ratio controls** (fit, fill, zoom, 16:9, 4:3). [Details ↓](#-video-downloads)
-
-</td>
+<td valign="top">🗂️ <b>Tabs</b><br><sub>Previews, swipe to close, drag to reorder</sub></td>
+<td valign="top">🎬 <b>Video downloads</b><br><sub>Files and HLS streams, saved as MP4</sub></td>
 </tr>
 <tr>
-<td valign="top">
-
-### 🔒 Privacy controls
-Third-party cookies blocked by default, tracking parameters (`utm_*`, `fbclid`, `gclid`…) removed from links, choose exactly what to clear, and clear cookies and data for one site. Certificate errors are never bypassed.
-
-</td>
-<td valign="top">
-
-### 📍 Site permissions
-Camera, microphone, location and protected media are asked per site and remembered. Review or change them in the site information panel or **Settings → Privacy and security → Site settings**.
-
-</td>
+<td valign="top">🔒 <b>Privacy controls</b><br><sub>No third-party cookies or tracking links</sub></td>
+<td valign="top">📍 <b>Site permissions</b><br><sub>Asked per site and remembered</sub></td>
 </tr>
 <tr>
-<td valign="top">
-
-### ⭐ Bookmarks & history
-Bookmark folders, edit, move, delete, search, and import or export as HTML (works with Chrome, Firefox, Edge and Safari) or JSON. History grouped by day or by website, searchable; delete a page, a day, a website or a time range.
-
-</td>
-<td valign="top">
-
-### ⛶ Full screen & more
-Full screen hides the browser and system bars and stays on as you browse. Full-screen video continues in **picture-in-picture** when you leave the app. Plus find in page, share, desktop site, darken websites, translate, reader mode, print or save as PDF, add to home screen, and a downloads manager with live progress.
-
-</td>
+<td valign="top">⭐ <b>Bookmarks & history</b><br><sub>Folders, search, import and export</sub></td>
+<td valign="top">⛶ <b>Full screen</b><br><sub>Hides all bars; video goes picture-in-picture</sub></td>
 </tr>
 </table>
+
+<details>
+<summary><b>Full feature details</b></summary>
+<br>
+
+- **Ad and tracker blocking** — requests to about 215,000 known advertising, tracking and malicious domains (and their subdomains) are stopped before they leave your phone. Turn it off for a single site from the site information button if the site breaks.
+- **Private windows** — a separate process with its own cookies and storage, deleted when the window closes, even after a crash or force-stop. [More ↓](#%EF%B8%8F-private-browsing)
+- **Home page** — Block Browser's own start and new-tab page: a search box (your chosen engine, Google by default), shortcuts to your most visited sites, and how many ads and trackers were blocked today, this session and in total, with a 7-day chart and the most-blocked domains. Built into the app, never loaded from the internet. **Settings → Homepage** can switch to any other address.
+- **Smart address bar** — suggestions from your bookmarks and history with titles and site icons, ranked by how well the address matches and how often and recently you visited. Optional suggestions from your search engine (off by default). Ten search engines to choose from.
+- **Tabs** — a grid of open tabs with page previews: swipe or tap × to close, Undo, drag to reorder, duplicate, close others or all. Links from other apps open in a new tab. Tabs are restored after a restart and only load when you open them.
+- **Video downloads** — plain video files and HLS streams (`.m3u8`), the format most news, sports and social sites use. Pick a quality and it downloads in the background, saved as one MP4. Built-in player with aspect-ratio controls (fit, fill, zoom, 16:9, 4:3). [Details ↓](#-video-downloads)
+- **Privacy controls** — third-party cookies blocked by default, tracking parameters (`utm_*`, `fbclid`, `gclid`…) removed from links, choose exactly what to clear, and clear cookies and data for one site. Certificate errors are never bypassed.
+- **Site permissions** — camera, microphone, location and protected media are asked per site and remembered. Review or change them in the site information panel or **Settings → Privacy and security → Site settings**.
+- **Bookmarks and history** — bookmark folders, edit, move, delete, search, and import or export as HTML (works with Chrome, Firefox, Edge and Safari) or JSON. History grouped by day or by website, searchable; delete a page, a day, a website or a time range.
+- **Full screen** — hides the browser and system bars and stays on as you browse. Full-screen video continues in picture-in-picture when you leave the app.
+- **More** — find in page, share, desktop site, darken websites, translate, reader mode, print or save as PDF, add to home screen, and a downloads manager with live progress.
+
+</details>
 
 ## 📱 Take the tour
 
