@@ -120,6 +120,8 @@ public class MainActivity extends Activity {
   View customView;
   WebChromeClient.CustomViewCallback customViewCallback;
   TextView websiteAspectButton;
+  Runnable websiteAspectFade;
+  AlertDialog websiteAspectDialog;
   WebView websiteVideoWebView;
   int websiteAspectMode;
   static final String[] WEBSITE_ASPECT_LABELS = {"Fit (original)", "Fill screen (stretch)", "Zoom (crop)", "16:9", "4:3"};
@@ -683,8 +685,14 @@ public class MainActivity extends Activity {
   void hideCustomView() {
     if (customView == null) return;
     if (websiteVideoWebView != null) setWebsiteVideoAspect(-1);
-    if (websiteAspectButton != null) outer.removeView(websiteAspectButton);
+    if (websiteAspectFade != null) handler.removeCallbacks(websiteAspectFade);
+    if (websiteAspectButton != null) {
+      websiteAspectButton.animate().cancel();
+      outer.removeView(websiteAspectButton);
+    }
     websiteAspectButton = null;
+    if (websiteAspectDialog != null) websiteAspectDialog.dismiss();
+    websiteAspectDialog = null;
     websiteVideoWebView = null;
     outer.removeView(customView);
     customView = null;
@@ -703,33 +711,72 @@ public class MainActivity extends Activity {
     websiteVideoWebView = web;
     websiteAspectMode = 0;
     websiteAspectButton = new TextView(this);
-    websiteAspectButton.setText("Aspect ratio");
+    websiteAspectButton.setText("\u25ad");
+    websiteAspectButton.setContentDescription("Aspect ratio: " + WEBSITE_ASPECT_LABELS[0]);
     websiteAspectButton.setTextColor(Color.WHITE);
-    websiteAspectButton.setTextSize(14);
-    websiteAspectButton.setBackgroundColor(0xcc111827);
-    websiteAspectButton.setPadding(dp(16), dp(12), dp(16), dp(12));
+    websiteAspectButton.setTextSize(24);
+    // Small visual control, with a 48dp touch target for reliable tapping.
+    GradientDrawable background = new GradientDrawable();
+    background.setColor(0x66111827);
+    background.setCornerRadius(dp(24));
+    websiteAspectButton.setBackground(background);
     websiteAspectButton.setGravity(Gravity.CENTER);
     websiteAspectButton.setFocusable(true);
-    websiteAspectButton.setMinHeight(dp(48));
-    websiteAspectButton.setOnClickListener(v -> new AlertDialog.Builder(this)
+    websiteAspectButton.setOnClickListener(v -> {
+      if (websiteAspectFade != null) handler.removeCallbacks(websiteAspectFade);
+      websiteAspectDialog = new AlertDialog.Builder(this)
         .setTitle("Aspect ratio")
         .setSingleChoiceItems(WEBSITE_ASPECT_LABELS, websiteAspectMode, (dialog, which) -> {
           websiteAspectMode = which;
           setWebsiteVideoAspect(which);
-          websiteAspectButton.setText("Aspect ratio: " + WEBSITE_ASPECT_LABELS[which]);
+          if (websiteAspectButton != null) {
+            websiteAspectButton.setContentDescription("Aspect ratio: " + WEBSITE_ASPECT_LABELS[which]);
+          }
           dialog.dismiss();
-        }).setNegativeButton("Cancel", null).show());
-    FrameLayout.LayoutParams layout = new FrameLayout.LayoutParams(-2, -2, Gravity.TOP | Gravity.END);
-    layout.setMargins(dp(32), dp(32), dp(32), 0);
+        }).setNegativeButton("Cancel", null).create();
+      websiteAspectDialog.setOnDismissListener(dialog -> {
+        websiteAspectDialog = null;
+        showWebsiteAspectButton();
+      });
+      websiteAspectDialog.show();
+    });
+    FrameLayout.LayoutParams layout = new FrameLayout.LayoutParams(dp(48), dp(48), Gravity.TOP | Gravity.END);
+    layout.setMargins(dp(16), dp(24), dp(16), 0);
     outer.addView(websiteAspectButton, layout);
     setWebsiteVideoAspect(0);
+    showWebsiteAspectButton();
+  }
+
+  void showWebsiteAspectButton() {
+    if (websiteAspectButton == null || isInPictureInPictureMode()) return;
+    if (websiteAspectFade != null) handler.removeCallbacks(websiteAspectFade);
+    TextView button = websiteAspectButton;
+    button.animate().cancel();
+    button.setVisibility(View.VISIBLE);
+    button.setAlpha(0.8f);
+    if (websiteAspectDialog != null) return;
+    websiteAspectFade = () -> button.animate().alpha(0f).setDuration(250)
+        .withEndAction(() -> button.setVisibility(View.INVISIBLE)).start();
+    handler.postDelayed(websiteAspectFade, 2500);
+  }
+
+  @Override public boolean dispatchTouchEvent(MotionEvent event) {
+    // Observe taps without consuming them, so the website's playback controls still work.
+    if (customView != null && event.getActionMasked() == MotionEvent.ACTION_DOWN) {
+      showWebsiteAspectButton();
+    }
+    return super.dispatchTouchEvent(event);
   }
 
   @Override public void onPictureInPictureModeChanged(boolean inPictureInPictureMode,
       android.content.res.Configuration configuration) {
     super.onPictureInPictureModeChanged(inPictureInPictureMode, configuration);
     if (websiteAspectButton != null) {
-      websiteAspectButton.setVisibility(inPictureInPictureMode ? View.GONE : View.VISIBLE);
+      if (inPictureInPictureMode) {
+        if (websiteAspectFade != null) handler.removeCallbacks(websiteAspectFade);
+        websiteAspectButton.animate().cancel();
+        websiteAspectButton.setVisibility(View.GONE);
+      } else showWebsiteAspectButton();
     }
   }
 
