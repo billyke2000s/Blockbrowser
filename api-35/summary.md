@@ -1,0 +1,36 @@
+### Browser check — Android API 35
+- ✅ Opened three pages from other apps, each in a new tab
+- ✅ Tab button shows 4 tabs (home + 3)
+- ✅ Tab switcher lists the tabs with the current one marked
+- ✅ Closing a tab removes it and offers Undo
+- ✅ Undo restored the closed tab without switching away from the current one
+  - restore log: scroll restore target=4537 now=4537 attempts=1 done contentHeight=7015|
+- ✅ After restart the selected tab (Page 3) reloaded at its scroll position (y=1728)
+- ✅ Other restored tabs were not reloaded until opened (lazy restore)
+- ✅ All 4 tabs restored
+- ✅ Typing 'page' suggests visited pages by title
+- ✅ Download request carried the site's login cookie
+- ✅ Downloaded file saved to Downloads
+- ✅ Website location request shows Block Browser's prompt
+- ✅ Allowed: the site got location access (result: err3)
+- ✅ The remembered decision was used without asking again
+- ✅ Second visit got location access
+- ✅ Private window asks again (normal 'Allow' decisions aren't carried over)
+- ✅ Blocking in private denied the site
+- ✅ Full screen stays on when a new page opens
+- ✅ Clearing browsing data removed cookies and site storage
+- ✅ History cleared
+- ✅ Choosing DuckDuckGo in Settings saves it
+- ✅ Settings screen shows the chosen engine
+- ✅ Address-bar search uses the chosen engine
+- ✅ Search engine in the menu lists all 10 engines
+- ✅ Choosing Bing from the menu's list works
+- ✅ Ad-blocking switch in Privacy and security works
+- ✅ Tapping a history entry opens the page
+- ✅ Home page opens (generated inside the app, no network)
+- ✅ Home page shows blocking counts (today, this session, all time)
+- ✅ Searching from the home page goes to the chosen search engine
+- ✅ App kept running when the page renderer was killed
+- ✅ Renderer loss was handled (tab rebuilt with an error page)
+
+Passed: 32
