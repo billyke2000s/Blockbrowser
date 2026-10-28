@@ -63,6 +63,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.webkit.WebSettingsCompat;
+import androidx.webkit.WebViewCompat;
 import androidx.webkit.WebViewFeature;
 
 import org.json.JSONArray;
@@ -118,6 +119,33 @@ public class MainActivity extends Activity {
   boolean fullscreen = false, fullscreenBeforeVideo = false, immersiveRequested = false, restoringSession = false;
   View customView;
   WebChromeClient.CustomViewCallback customViewCallback;
+  TextView websiteAspectButton;
+  WebView websiteVideoWebView;
+  int websiteAspectMode;
+  static final String[] WEBSITE_ASPECT_LABELS = {"Fit (original)", "Fill screen (stretch)", "Zoom (crop)", "16:9", "4:3"};
+  // Installed in each frame so embedded players work without accessing cross-origin documents.
+  // This only adjusts video CSS; it exposes no Android bridge or device permissions.
+  static final String WEBSITE_ASPECT_SCRIPT = "(function(){"
+      + "if(window.__bbVideoAspect)return;let mode=-1;const saved=new Map();"
+      + "const keys=['position','left','top','width','height','max-width','max-height','transform','object-fit','object-position'];"
+      + "function restore(){saved.forEach((old,v)=>keys.forEach((k,i)=>{"
+      + "if(old[i][0])v.style.setProperty(k,old[i][0],old[i][1]);else v.style.removeProperty(k);}));saved.clear();}"
+      + "function apply(){restore();if(mode<0)return;"
+      + "const videos=Array.from(document.querySelectorAll('video')).filter(v=>{const r=v.getBoundingClientRect();return r.width>0&&r.height>0;});"
+      + "videos.sort((a,b)=>{const x=a.getBoundingClientRect(),y=b.getBoundingClientRect();return y.width*y.height-x.width*x.height;});"
+      + "const v=videos[0];if(!v)return;"
+      + "saved.set(v,keys.map(k=>[v.style.getPropertyValue(k),v.style.getPropertyPriority(k)]));"
+      + "const ratio=mode===3?16/9:mode===4?4/3:innerWidth/innerHeight;"
+      + "const width=Math.min(innerWidth,innerHeight*ratio),height=width/ratio;"
+      + "const values=['fixed','50%','50%',width+'px',height+'px','none','none','translate(-50%, -50%)',"
+      + "mode===2?'cover':mode===0?'contain':'fill','center'];"
+      + "keys.forEach((k,i)=>v.style.setProperty(k,values[i],'important'));}"
+      + "window.__bbVideoAspect=function(m){if(!Number.isInteger(m)||m< -1||m>4)return;mode=m;apply();"
+      + "for(let i=0;i<frames.length;i++)frames[i].postMessage({bbVideoAspect:m},'*');};"
+      + "addEventListener('message',e=>{if(e.source===parent&&e.source!==window&&e.data)window.__bbVideoAspect(e.data.bbVideoAspect);});"
+      + "addEventListener('resize',apply);document.addEventListener('loadedmetadata',apply,true);"
+      + "document.addEventListener('fullscreenchange',apply);"
+      + "})();";
   float downX, downY;
   SiteSettings siteSettings;
 
@@ -654,11 +682,55 @@ public class MainActivity extends Activity {
 
   void hideCustomView() {
     if (customView == null) return;
+    if (websiteVideoWebView != null) setWebsiteVideoAspect(-1);
+    if (websiteAspectButton != null) outer.removeView(websiteAspectButton);
+    websiteAspectButton = null;
+    websiteVideoWebView = null;
     outer.removeView(customView);
     customView = null;
     if (customViewCallback != null) customViewCallback.onCustomViewHidden();
     customViewCallback = null;
     setFullscreen(immersiveRequested);
+  }
+
+  void setWebsiteVideoAspect(int mode) {
+    if (websiteVideoWebView == null) return;
+    websiteVideoWebView.evaluateJavascript(WEBSITE_ASPECT_SCRIPT
+        + "window.__bbVideoAspect(" + mode + ");", null);
+  }
+
+  void showWebsiteAspectControl(WebView web) {
+    websiteVideoWebView = web;
+    websiteAspectMode = 0;
+    websiteAspectButton = new TextView(this);
+    websiteAspectButton.setText("Aspect ratio");
+    websiteAspectButton.setTextColor(Color.WHITE);
+    websiteAspectButton.setTextSize(14);
+    websiteAspectButton.setBackgroundColor(0xcc111827);
+    websiteAspectButton.setPadding(dp(16), dp(12), dp(16), dp(12));
+    websiteAspectButton.setGravity(Gravity.CENTER);
+    websiteAspectButton.setFocusable(true);
+    websiteAspectButton.setMinHeight(dp(48));
+    websiteAspectButton.setOnClickListener(v -> new AlertDialog.Builder(this)
+        .setTitle("Aspect ratio")
+        .setSingleChoiceItems(WEBSITE_ASPECT_LABELS, websiteAspectMode, (dialog, which) -> {
+          websiteAspectMode = which;
+          setWebsiteVideoAspect(which);
+          websiteAspectButton.setText("Aspect ratio: " + WEBSITE_ASPECT_LABELS[which]);
+          dialog.dismiss();
+        }).setNegativeButton("Cancel", null).show());
+    FrameLayout.LayoutParams layout = new FrameLayout.LayoutParams(-2, -2, Gravity.TOP | Gravity.END);
+    layout.setMargins(dp(32), dp(32), dp(32), 0);
+    outer.addView(websiteAspectButton, layout);
+    setWebsiteVideoAspect(0);
+  }
+
+  @Override public void onPictureInPictureModeChanged(boolean inPictureInPictureMode,
+      android.content.res.Configuration configuration) {
+    super.onPictureInPictureModeChanged(inPictureInPictureMode, configuration);
+    if (websiteAspectButton != null) {
+      websiteAspectButton.setVisibility(inPictureInPictureMode ? View.GONE : View.VISIBLE);
+    }
   }
 
   /** Leaving the app while a video plays full screen continues it in a picture-in-picture window. */
@@ -1201,6 +1273,9 @@ public class MainActivity extends Activity {
 
   WebView createWebView(Tab tab) {
     WebView w = new WebView(this);
+    if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
+      WebViewCompat.addDocumentStartJavaScript(w, WEBSITE_ASPECT_SCRIPT, Collections.singleton("*"));
+    }
     w.setBackgroundColor(Color.WHITE);
     if (Build.VERSION.SDK_INT >= 26) w.setImportantForAutofill(autofillMode());
     WebSettings s = w.getSettings();
@@ -1587,6 +1662,7 @@ public class MainActivity extends Activity {
       view.setBackgroundColor(Color.BLACK);
       outer.addView(view, new FrameLayout.LayoutParams(-1, -1));
       setFullscreen(true);
+      showWebsiteAspectControl(tab.web);
     }
 
     @Override public void onHideCustomView() { hideCustomView(); }
