@@ -102,6 +102,7 @@ public class MainActivity extends Activity {
   EditText findInput;
   ProgressBar progress;
   TabSwitcher switcher;
+  LinearLayout groupBar;
 
   // ---- State ----
   SharedPreferences prefs;
@@ -468,6 +469,12 @@ public class MainActivity extends Activity {
 
     buildFindBar();
     root.addView(findBar);
+    groupBar = new LinearLayout(this);
+    groupBar.setGravity(Gravity.CENTER_VERTICAL);
+    groupBar.setPadding(dp(8), dp(3), dp(8), dp(3));
+    groupBar.setBackgroundColor(PANEL);
+    root.addView(groupBar);
+    groupBar.setVisibility(View.GONE);
 
     exitFs = button("⛶", () -> { if (exitFs.getAlpha() < 0.35f) showFsControl(); else setFullscreen(false); });
     exitFs.setContentDescription("Fullscreen control");
@@ -640,6 +647,7 @@ public class MainActivity extends Activity {
     fullscreen = on;
     if (customView == null) { immersiveRequested = on; prefs.edit().putBoolean("fullscreen", on).apply(); }
     toolbar.setVisibility(on ? View.GONE : View.VISIBLE);
+    if (groupBar != null) updateGroupBar();
     if (on) { progress.setVisibility(View.GONE); if (findBar.getVisibility() == View.VISIBLE) closeFind(); }
     else updateProgress(currentTab());
     exitFs.setVisibility(on && customView == null ? View.VISIBLE : View.GONE);
@@ -849,6 +857,7 @@ public class MainActivity extends Activity {
     if (t.web.getParent() != null) ((ViewGroup) t.web.getParent()).removeView(t.web);
     frame.addView(t.web, new FrameLayout.LayoutParams(-1, -1));
     updateToolbar(t);
+    updateGroupBar();
     trimLiveTabs();
     scheduleSessionSave();
   }
@@ -1065,16 +1074,90 @@ public class MainActivity extends Activity {
       @Override public void close(int index) { closeTab(index, true); }
       @Override public void move(int from, int to) { moveTab(from, to); }
       @Override public void newTab() { MainActivity.this.newTab(homeUrl()); }
+      @Override public void groupTab(int index) { chooseGroupForTab(tabs.get(index)); }
       @Override public void showMenu(View anchor) { tabMenu(anchor); }
       @Override public boolean isPrivate() { return MainActivity.this.isPrivate(); }
     });
     switcher.show();
   }
 
+  void createGroupForLink(String link) {
+    Tab t = newTab(link, false);
+    if (t != null) createGroup(t);
+  }
+
+  void createGroup(Tab tab) {
+    if (tab == null) return;
+    EditText input = new EditText(this);
+    input.setSingleLine(true);
+    input.setHint("Group name");
+    input.setText("New group");
+    new AlertDialog.Builder(this).setTitle("Create tab group").setView(input)
+        .setPositiveButton("Create", (d, w) -> {
+          String name = input.getText().toString().trim();
+          tab.groupId = name.isEmpty() ? "New group" : name;
+          groupChanged();
+        }).setNegativeButton("Cancel", null).show();
+  }
+
+  void chooseGroupForLink(String link) {
+    Tab tab = newTab(link, false);
+    chooseGroupForTab(tab);
+  }
+
+  void chooseGroupForTab(Tab tab) {
+    if (tab == null) return;
+    ArrayList<String> names = new ArrayList<>();
+    names.add("Create new group");
+    for (Tab t : tabs) if (t.groupId != null && !names.contains(t.groupId)) names.add(t.groupId);
+    if (tab.groupId != null) names.add("Remove from group");
+    new AlertDialog.Builder(this).setTitle("Add to group")
+        .setItems(names.toArray(new String[0]), (d, n) -> {
+          if (n == 0) createGroup(tab);
+          else if (names.get(n).equals("Remove from group")) { tab.groupId = null; groupChanged(); }
+          else { tab.groupId = names.get(n); groupChanged(); }
+        }).show();
+  }
+
+  void groupChanged() {
+    updateGroupBar();
+    scheduleSessionSave();
+    if (switcher != null && switcher.isShowing()) switcher.refresh();
+  }
+
+  void updateGroupBar() {
+    if (groupBar == null) return;
+    groupBar.removeAllViews();
+    Tab active = currentTab();
+    if (fullscreen || customView != null || active == null || active.groupId == null) {
+      groupBar.setVisibility(View.GONE);
+      return;
+    }
+    groupBar.setVisibility(View.VISIBLE);
+    TextView label = button(active.groupId + " ▾", () -> chooseGroupForTab(active));
+    label.setTextSize(13);
+    groupBar.addView(label);
+    for (Tab tab : tabs) {
+      if (!active.groupId.equals(tab.groupId)) continue;
+      TextView chip = button(tab == active ? "● " + tab.displayTitle() : tab.displayTitle(), () -> selectTab(tabs.indexOf(tab)));
+      chip.setTextSize(12);
+      chip.setSingleLine(true);
+      chip.setMaxWidth(dp(110));
+      groupBar.addView(chip, new LinearLayout.LayoutParams(0, dp(42), 1));
+    }
+    TextView plus = button("+", () -> {
+      Tab created = newTab(homeUrl());
+      created.groupId = active.groupId;
+      groupChanged();
+    });
+    groupBar.addView(plus);
+  }
+
   void tabMenu(View anchor) {
     List<MenuEntry> entries = new ArrayList<>();
     entries.add(new MenuEntry("+", "New tab", () -> { if (switcher != null) switcher.dismiss(); newTab(homeUrl()); }));
     if (!isPrivate()) entries.add(new MenuEntry("◈", "New private window", () -> { if (switcher != null) switcher.dismiss(); openPrivateWindow(); }));
+    entries.add(new MenuEntry("▤", "Add tab to group", () -> chooseGroupForTab(currentTab())));
     entries.add(new MenuEntry("▣", "Duplicate current tab", () -> { duplicateCurrentTab(); if (switcher != null) switcher.refresh(); }));
     entries.add(new MenuEntry("×", "Close other tabs", () -> { closeOtherTabs(); if (switcher != null) switcher.refresh(); }));
     entries.add(new MenuEntry("⊗", "Close all tabs", () -> new AlertDialog.Builder(this).setTitle("Close all " + tabs.size() + " tabs?")
@@ -1110,6 +1193,7 @@ public class MainActivity extends Activity {
         item.put("title", t.title == null ? "" : t.title);
         item.put("scrollY", t.web != null ? t.web.getScrollY() : (t.restoreY == null ? 0 : t.restoreY));
         if (t.desktop) item.put("desktop", true);
+        if (t.groupId != null) item.put("group", t.groupId);
         a.put(item);
       }
       String json = a.toString();
@@ -1135,6 +1219,8 @@ public class MainActivity extends Activity {
         t.title = item.optString("title", "");
         t.restoreY = Math.max(0, item.optInt("scrollY", 0));
         t.desktop = item.optBoolean("desktop", false);
+        t.groupId = item.optString("group", "");
+        if (t.groupId.isEmpty()) t.groupId = null;
         tabs.add(t);
       }
       if (tabs.isEmpty()) tabs.add(new Tab(homeUrl()));
@@ -1922,6 +2008,8 @@ public class MainActivity extends Activity {
     if (link != null && UrlTools.isWebUrl(link)) {
       labels.add("Open in new tab"); actions.add(() -> newTab(link, false));
       labels.add("Open in background tab"); actions.add(() -> newTab(link, true));
+      labels.add("Open in new group"); actions.add(() -> createGroupForLink(link));
+      labels.add("Add to group"); actions.add(() -> chooseGroupForLink(link));
       if (!isPrivate() && Build.VERSION.SDK_INT >= 28) { labels.add("Open in private window"); actions.add(() -> openInPrivateWindow(link)); }
       labels.add("Copy link address"); actions.add(() -> copyText("Link", link));
       labels.add("Share link"); actions.add(() -> shareLink(link));
