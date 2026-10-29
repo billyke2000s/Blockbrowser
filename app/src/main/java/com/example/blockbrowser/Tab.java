@@ -17,6 +17,7 @@ final class Tab {
   String url;             // last known address (also what a discarded tab reloads)
   String title = "";
   Bitmap favicon, thumbnail;
+  String groupId;
   boolean desktop;
   boolean loading;
   int progress;
