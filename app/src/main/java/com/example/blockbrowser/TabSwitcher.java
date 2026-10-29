@@ -31,6 +31,7 @@ final class TabSwitcher {
     void close(int index);
     void move(int from, int to);
     void newTab();
+    void groupTab(int index);
     void showMenu(View anchor);
     boolean isPrivate();
   }
@@ -235,7 +236,7 @@ final class TabSwitcher {
     }
 
     void bind(Tab tab, boolean current) {
-      title.setText(tab.displayTitle());
+      title.setText(tab.groupId == null ? tab.displayTitle() : "[" + tab.groupId + "] " + tab.displayTitle());
       favicon.setImageBitmap(tab.favicon);
       favicon.setVisibility(tab.favicon == null ? View.GONE : View.VISIBLE);
       if (tab.thumbnail != null) {
@@ -281,6 +282,7 @@ final class TabSwitcher {
         host.select(i);
       });
       h.close.setOnClickListener(v -> { int i = h.getBindingAdapterPosition(); if (i >= 0) closeAt(i); });
+      h.card.setOnLongClickListener(v -> { int i = h.getBindingAdapterPosition(); if (i >= 0) host.groupTab(i); return true; });
     }
   }
 }
