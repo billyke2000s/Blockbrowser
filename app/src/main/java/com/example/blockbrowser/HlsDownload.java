@@ -87,6 +87,19 @@ final class HlsDownload {
             String range = c.getHeaderField("Content-Range");
             if (range == null || !range.startsWith("bytes " + offset + "-"))
               throw new IOException("server returned the wrong byte range");
+            int dash = range.indexOf('-', 6);
+            int slash = range.indexOf('/', dash + 1);
+            if (dash < 0 || slash < 0) throw new IOException("invalid Content-Range header");
+            try {
+              long end = Long.parseLong(range.substring(dash + 1, slash));
+              long total = range.substring(slash + 1).equals("*") ? -1
+                  : Long.parseLong(range.substring(slash + 1));
+              if (end < offset || (length >= 0 && end != offset + length - 1)
+                  || (total >= 0 && end >= total))
+                throw new IOException("server returned an incomplete or incorrect byte range");
+            } catch (NumberFormatException e) {
+              throw new IOException("invalid Content-Range header", e);
+            }
           }
           if (offset >= 0 && code != 200 && code != 206)
             throw new IOException("server did not honour the media byte range (HTTP " + code + ")");
