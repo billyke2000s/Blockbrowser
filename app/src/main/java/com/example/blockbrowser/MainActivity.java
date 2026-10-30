@@ -2359,31 +2359,10 @@ public class MainActivity extends Activity {
           return;
         }
       }
-      // A blob/MSE source is not an HTTP URL. The tab-wide request log cannot
-      // establish which manifest belongs to this fullscreen player (especially
-      // when ads and cross-origin iframes also request HLS). Never guess here.
-      if (url.isEmpty() || url.startsWith("blob:") || url.startsWith("mediasource:")) {
-        toastLong("This player uses an embedded stream. Its exact video URL could not be verified; no download started.");
-        return;
-      }
-      // Only consider captured HLS manifests for an otherwise unclassified
-      // web URL, and only if there is a single unambiguous candidate.
-      java.util.LinkedHashMap<String, MediaSniffer.Kind> masters = new java.util.LinkedHashMap<>();
-      java.util.LinkedHashMap<String, MediaSniffer.Kind> streams = new java.util.LinkedHashMap<>();
-      for (MediaSniffer.Found f : tab.media.snapshot()) {
-        if (f.kind != MediaSniffer.Kind.HLS) continue;
-        String path = Uri.parse(f.url).getPath();
-        path = path == null ? "" : path.toLowerCase(java.util.Locale.ROOT);
-        if (path.endsWith("/master.m3u8") || path.endsWith("/master_playlist.m3u8")) masters.put(f.url, f.kind);
-        else if (!path.matches(".*[/]index-v[^/]*-a[^/]*[.]m3u8$")) streams.put(f.url, f.kind);
-      }
-      java.util.LinkedHashMap<String, MediaSniffer.Kind> candidates = masters.isEmpty() ? streams : masters;
-      if (candidates.size() == 1) {
-        String chosen = candidates.keySet().iterator().next();
-        downloadVideo(tab, chosen, MediaSniffer.Kind.HLS, agent, page);
-      } else {
-        toastLong("Cannot identify this fullscreen video's stream reliably. No download started.");
-      }
+      // A tab-wide network request log does not identify which stream belongs
+      // to the fullscreen player, including when an ad or iframe requests HLS.
+      // Do not silently download a different video.
+      toastLong("Cannot verify the exact stream for this fullscreen video. No download started.");
     });
   }
 
