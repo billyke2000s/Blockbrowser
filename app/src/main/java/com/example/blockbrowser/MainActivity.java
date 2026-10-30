@@ -1093,6 +1093,8 @@ public class MainActivity extends Activity {
       @Override public void showMenu(View anchor) { tabMenu(anchor); }
       @Override public boolean isPrivate() { return MainActivity.this.isPrivate(); }
       @Override public void renameGroup(String name) { renameTabGroup(name); }
+      @Override public int groupColor(String name) { return tabGroupColor(name); }
+      @Override public void chooseGroupColor(String name) { chooseTabGroupColor(name); }
       @Override public void newTabInGroup(String name) {
         Tab t = MainActivity.this.newTab(homeUrl());
         if (t != null) { t.groupId = name; groupChanged(); }
@@ -1167,6 +1169,26 @@ public class MainActivity extends Activity {
         }).show();
   }
 
+  private static final int[] TAB_GROUP_COLORS = {
+      0xffaec7ff, 0xffb9dfc4, 0xffffd6a1, 0xffe9c2ff,
+      0xffffbfc8, 0xffb2e2e8, 0xffe3dea9, 0xffbec5d5
+  };
+
+  int tabGroupColor(String name) {
+    int fallback = Math.floorMod(name.hashCode(), TAB_GROUP_COLORS.length);
+    int index = getSharedPreferences("tab_group_colours", MODE_PRIVATE).getInt(name, fallback);
+    return TAB_GROUP_COLORS[Math.floorMod(index, TAB_GROUP_COLORS.length)];
+  }
+
+  void chooseTabGroupColor(String name) {
+    String[] labels = {"Blue", "Green", "Orange", "Purple", "Pink", "Teal", "Yellow", "Grey"};
+    new AlertDialog.Builder(this).setTitle("Group colour")
+        .setItems(labels, (d, index) -> {
+          getSharedPreferences("tab_group_colours", MODE_PRIVATE).edit().putInt(name, index).apply();
+          groupChanged();
+        }).show();
+  }
+
   void renameTabGroup(String oldName) {
     EditText input = new EditText(this);
     input.setSingleLine(true);
@@ -1176,6 +1198,8 @@ public class MainActivity extends Activity {
           String next = input.getText().toString().trim();
           if (next.isEmpty() || next.equals(oldName)) return;
           for (Tab tab : tabs) if (oldName.equals(tab.groupId)) tab.groupId = next;
+          android.content.SharedPreferences colors = getSharedPreferences("tab_group_colours", MODE_PRIVATE);
+          if (colors.contains(oldName)) colors.edit().putInt(next, colors.getInt(oldName, 0)).remove(oldName).apply();
           groupChanged();
         }).setNegativeButton("Cancel", null).show();
   }
