@@ -2331,9 +2331,14 @@ public class MainActivity extends Activity {
       toastLong("The fullscreen video player is no longer active");
       return;
     }
-    String js = "(function(){var a=Array.from(document.querySelectorAll('video'));"
-        + "var active=a.filter(x=>!x.paused&&!x.ended&&x.readyState>0);"
-        + "var full=a.filter(x=>x.webkitDisplayingFullscreen||document.fullscreenElement===x);"
+    // Search the page and any same-origin embedded frames. Cross-origin frames
+    // cannot be inspected from page JavaScript; do not bypass that boundary.
+    String js = "(function(){var videos=[];var visited=[];"
+        + "function scan(w){try{if(visited.indexOf(w)!==-1)return;visited.push(w);"
+        + "videos.push.apply(videos,w.document.querySelectorAll('video'));"
+        + "for(var i=0;i<w.frames.length;i++)scan(w.frames[i]);}catch(e){}}"
+        + "scan(window);var active=videos.filter(x=>!x.paused&&!x.ended&&x.readyState>0);"
+        + "var full=videos.filter(x=>x.webkitDisplayingFullscreen||x.ownerDocument.fullscreenElement===x);"
         + "var chosen=full.length===1?full:active;"
         + "if(chosen.length>1)return 'bb:ambiguous-player';if(chosen.length===0)return '';"
         + "var v=chosen[0];return v.currentSrc||v.src||(v.querySelector('source')||{}).src||'';})()";
