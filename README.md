@@ -4,8 +4,8 @@
 
 <br>
 
-[![Latest release](https://img.shields.io/github/v/release/billyke2000s/Blockbrowser?style=flat-square&label=release&color=55d7ff&labelColor=0b1428)](https://github.com/billyke2000s/Blockbrowser/releases/latest)
-[![Build](https://img.shields.io/github/actions/workflow/status/billyke2000s/Blockbrowser/android.yml?branch=main&style=flat-square&label=build&labelColor=0b1428)](https://github.com/billyke2000s/Blockbrowser/actions/workflows/android.yml)
+[![Latest release](https://img.shields.io/badge/Latest-Releases-55d7ff?style=flat-square&labelColor=0b1428)](https://github.com/billyke2000s/Blockbrowser/releases/latest)
+[![Build](https://github.com/billyke2000s/Blockbrowser/actions/workflows/android.yml/badge.svg?branch=main)](https://github.com/billyke2000s/Blockbrowser/actions/workflows/android.yml)
 [![Downloads](https://img.shields.io/github/downloads/billyke2000s/Blockbrowser/total?style=flat-square&color=5eead4&labelColor=0b1428)](https://github.com/billyke2000s/Blockbrowser/releases)
 [![Android 8.0+](https://img.shields.io/badge/Android-8.0%2B-3ddc84?style=flat-square&logo=android&logoColor=white&labelColor=0b1428)](#-install)
 [![Java](https://img.shields.io/badge/Java-17-f89820?style=flat-square&logo=openjdk&logoColor=white&labelColor=0b1428)](#%EF%B8%8F-build-from-source)
