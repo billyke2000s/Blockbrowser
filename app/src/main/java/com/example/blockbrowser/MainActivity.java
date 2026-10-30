@@ -1107,21 +1107,44 @@ public class MainActivity extends Activity {
   }
 
   void chooseGroupForLink(String link) {
-    Tab tab = newTab(link, false);
-    chooseGroupForTab(tab);
+    ArrayList<String> names = existingGroupNames();
+    if (names.isEmpty()) { createGroupForLink(link); return; }
+    ArrayList<String> choices = new ArrayList<>();
+    choices.add("Create new group");
+    choices.addAll(names);
+    Tab current = currentTab();
+    if (current != null && current.groupId != null) {
+      choices.remove(current.groupId);
+      choices.add(1, current.groupId);
+    }
+    new AlertDialog.Builder(this).setTitle("Open link in group")
+        .setItems(choices.toArray(new String[0]), (d, n) -> {
+          Tab tab = newTab(link, false);
+          if (tab == null) return;
+          if (n == 0) createGroup(tab);
+          else { tab.groupId = choices.get(n); groupChanged(); }
+        }).show();
+  }
+
+  ArrayList<String> existingGroupNames() {
+    ArrayList<String> names = new ArrayList<>();
+    for (Tab t : tabs) if (t.groupId != null && !names.contains(t.groupId)) names.add(t.groupId);
+    return names;
   }
 
   void chooseGroupForTab(Tab tab) {
     if (tab == null) return;
-    ArrayList<String> names = new ArrayList<>();
-    names.add("Create new group");
-    for (Tab t : tabs) if (t.groupId != null && !names.contains(t.groupId)) names.add(t.groupId);
-    if (tab.groupId != null) names.add("Remove from group");
+    ArrayList<String> names = existingGroupNames();
+    ArrayList<String> choices = new ArrayList<>();
+    choices.add("Create new group");
+    choices.addAll(names);
+    if (tab.groupId != null) choices.add("Remove from group");
     new AlertDialog.Builder(this).setTitle("Add to group")
-        .setItems(names.toArray(new String[0]), (d, n) -> {
+        .setItems(choices.toArray(new String[0]), (d, n) -> {
           if (n == 0) createGroup(tab);
-          else if (names.get(n).equals("Remove from group")) { tab.groupId = null; groupChanged(); }
-          else { tab.groupId = names.get(n); groupChanged(); }
+          else if (tab.groupId != null && n == choices.size() - 1) {
+            tab.groupId = null; groupChanged();
+          } else { tab.groupId = choices.get(n); groupChanged(); }
         }).show();
   }
 
