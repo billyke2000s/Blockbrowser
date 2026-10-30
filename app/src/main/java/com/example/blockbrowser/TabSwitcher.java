@@ -30,7 +30,7 @@ final class TabSwitcher {
     void select(int index);
     void close(int index);
     void move(int from, int to);
-    void moveIntoGroup(int from, int to);
+    void groupDropped(Tab source, Tab target);
     void newTab();
     void groupTab(int index);
     void showMenu(View anchor);
@@ -43,6 +43,7 @@ final class TabSwitcher {
   private final RecyclerView grid;
   private final TextView title;
   private final Adapter adapter = new Adapter();
+  private Tab dragSource, dragTarget;
 
   TabSwitcher(MainActivity activity, Host host) {
     this.activity = activity;
@@ -84,7 +85,8 @@ final class TabSwitcher {
       @Override public boolean onMove(@NonNull RecyclerView rv, @NonNull RecyclerView.ViewHolder from, @NonNull RecyclerView.ViewHolder to) {
         int a = from.getBindingAdapterPosition(), b = to.getBindingAdapterPosition();
         if (a < 0 || b < 0) return false;
-        host.moveIntoGroup(a, b);
+        if (dragSource == null) dragSource = host.tabs().get(a);
+        dragTarget = host.tabs().get(b);
         host.move(a, b);
         adapter.notifyItemMoved(a, b);
         return true;
@@ -95,6 +97,9 @@ final class TabSwitcher {
       }
       @Override public void clearView(@NonNull RecyclerView rv, @NonNull RecyclerView.ViewHolder vh) {
         super.clearView(rv, vh);
+        if (dragSource != null && dragTarget != null && dragSource != dragTarget) host.groupDropped(dragSource, dragTarget);
+        dragSource = null;
+        dragTarget = null;
         refresh(); // redraw the "current tab" outline after a move
       }
     }).attachToRecyclerView(grid);
@@ -199,7 +204,7 @@ final class TabSwitcher {
   private final class Holder extends RecyclerView.ViewHolder {
     final LinearLayout card;
     final ImageView favicon = new ImageView(activity), thumb = new ImageView(activity);
-    final TextView title = new TextView(activity), close = new TextView(activity), placeholder = new TextView(activity);
+    final TextView title = new TextView(activity), close = new TextView(activity), group = new TextView(activity), placeholder = new TextView(activity);
 
     Holder(LinearLayout card) {
       super(card);
@@ -216,6 +221,12 @@ final class TabSwitcher {
       title.setEllipsize(android.text.TextUtils.TruncateAt.END);
       title.setPadding(activity.dp(6), 0, 0, 0);
       top.addView(title, new LinearLayout.LayoutParams(0, -2, 1));
+      group.setText("⊞");
+      group.setTextColor(ListPanel.TEXT);
+      group.setTextSize(21);
+      group.setGravity(Gravity.CENTER);
+      group.setContentDescription("Add tab to group");
+      top.addView(group, new LinearLayout.LayoutParams(activity.dp(40), activity.dp(40)));
       close.setText("×");
       close.setTextColor(ListPanel.MUTED);
       close.setTextSize(20);
@@ -284,7 +295,7 @@ final class TabSwitcher {
         host.select(i);
       });
       h.close.setOnClickListener(v -> { int i = h.getBindingAdapterPosition(); if (i >= 0) closeAt(i); });
-      h.card.setOnLongClickListener(v -> { int i = h.getBindingAdapterPosition(); if (i >= 0) host.groupTab(i); return true; });
+      h.group.setOnClickListener(v -> { int i = h.getBindingAdapterPosition(); if (i >= 0) host.groupTab(i); });
     }
   }
 }
