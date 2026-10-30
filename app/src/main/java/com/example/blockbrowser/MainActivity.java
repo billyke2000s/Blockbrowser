@@ -730,17 +730,23 @@ public class MainActivity extends Activity {
     websiteAspectButton.setBackground(background);
     websiteAspectButton.setGravity(Gravity.CENTER);
     websiteAspectButton.setFocusable(true);
+    websiteAspectButton.setContentDescription("Video options: aspect ratio and download");
+    websiteAspectButton.setText("⋮");
     websiteAspectButton.setOnClickListener(v -> {
       if (websiteAspectFade != null) handler.removeCallbacks(websiteAspectFade);
       websiteAspectDialog = new AlertDialog.Builder(this)
-        .setTitle("Aspect ratio")
-        .setSingleChoiceItems(WEBSITE_ASPECT_LABELS, websiteAspectMode, (dialog, which) -> {
-          websiteAspectMode = which;
-          setWebsiteVideoAspect(which);
-          if (websiteAspectButton != null) {
-            websiteAspectButton.setContentDescription("Aspect ratio: " + WEBSITE_ASPECT_LABELS[which]);
+        .setTitle("Video options")
+        .setItems(new String[]{"Aspect ratio", "Download this video"}, (dialog, which) -> {
+          if (which == 0) {
+            new AlertDialog.Builder(this).setTitle("Aspect ratio")
+              .setSingleChoiceItems(WEBSITE_ASPECT_LABELS, websiteAspectMode, (choice, mode) -> {
+                websiteAspectMode = mode;
+                setWebsiteVideoAspect(mode);
+                choice.dismiss();
+              }).setNegativeButton("Cancel", null).show();
+          } else {
+            downloadPlayingVideo();
           }
-          dialog.dismiss();
         }).setNegativeButton("Cancel", null).create();
       websiteAspectDialog.setOnDismissListener(dialog -> {
         websiteAspectDialog = null;
@@ -2204,6 +2210,28 @@ public class MainActivity extends Activity {
    * files) plus any {@code <video>} with a plain address. HLS streams are downloaded by StreamDownloadService and
    * saved as MP4; video files go through Android's download manager.
    */
+  /** Prefer the current fullscreen player's source over unrelated videos and ads on the page. */
+  void downloadPlayingVideo() {
+    Tab tab = currentTab();
+    WebView web = websiteVideoWebView;
+    if (tab == null || web == null) { videoDownload(); return; }
+    String js = "(function(){var a=Array.from(document.querySelectorAll('video'));"
+        + "var v=a.find(x=>!x.paused&&!x.ended)||a.find(x=>x.webkitDisplayingFullscreen)||a[0];"
+        + "return v?(v.currentSrc||v.src||(v.querySelector('source')||{}).src||''):'';})()";
+    web.evaluateJavascript(js, result -> {
+      String url = "";
+      try { url = new JSONArray("[" + result + "]").optString(0, ""); } catch (Exception ignored) {}
+      if (UrlTools.isWebUrl(url)) {
+        MediaSniffer.Kind kind = MediaSniffer.classify(url);
+        downloadVideo(tab, url, kind == null ? MediaSniffer.Kind.FILE : kind,
+            web.getSettings().getUserAgentString(), tab.currentUrl());
+      } else {
+        // Blob/MSE players often expose no direct URL: use the existing detected-stream chooser.
+        videoDownload();
+      }
+    });
+  }
+
   void videoDownload() {
     Tab t = currentTab();
     if (t == null || t.web == null) return;
