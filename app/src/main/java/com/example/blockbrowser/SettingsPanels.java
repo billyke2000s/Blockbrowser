@@ -47,6 +47,8 @@ final class SettingsPanels {
       darken.trailing = dark ? "On" : "Off";
       items.add(darken);
       items.add(new ListPanel.Item("◉", "Privacy and security", null, () -> showPrivacy(a)));
+      items.add(ListPanel.Item.header("Updates"));
+      if (!a.isPrivate()) items.add(new ListPanel.Item("⇩", "Check for updates", "Check GitHub Releases and install an APK without clearing browser data", () -> AppUpdater.check(a)));
       items.add(ListPanel.Item.header("About"));
       items.add(new ListPanel.Item("ⓘ", "About Block Browser", "Version " + version(a) + " · what this browser can and can't protect", () -> showLimits(a)));
       panel.setItems(items);
