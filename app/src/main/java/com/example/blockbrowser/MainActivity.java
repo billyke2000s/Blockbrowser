@@ -2313,23 +2313,50 @@ public class MainActivity extends Activity {
    * saved as MP4; video files go through Android's download manager.
    */
   /** Prefer the current fullscreen player's source over unrelated videos and ads on the page. */
+  /** Download from the fullscreen player's own menu, never open the page-wide candidate picker. */
   void downloadPlayingVideo() {
     Tab tab = currentTab();
     WebView web = websiteVideoWebView;
-    if (tab == null || web == null) { videoDownload(); return; }
+    if (tab == null || web == null) {
+      toastLong("The fullscreen video player is no longer active");
+      return;
+    }
     String js = "(function(){var a=Array.from(document.querySelectorAll('video'));"
         + "var v=a.find(x=>!x.paused&&!x.ended)||a.find(x=>x.webkitDisplayingFullscreen)||a[0];"
         + "return v?(v.currentSrc||v.src||(v.querySelector('source')||{}).src||''):'';})()";
     web.evaluateJavascript(js, result -> {
       String url = "";
       try { url = new JSONArray("[" + result + "]").optString(0, ""); } catch (Exception ignored) {}
+      String agent = web.getSettings().getUserAgentString();
+      String page = tab.currentUrl();
       if (UrlTools.isWebUrl(url)) {
         MediaSniffer.Kind kind = MediaSniffer.classify(url);
-        downloadVideo(tab, url, kind == null ? MediaSniffer.Kind.FILE : kind,
-            web.getSettings().getUserAgentString(), tab.currentUrl());
+        if (kind != null) {
+          downloadVideo(tab, url, kind, agent, page);
+          return;
+        }
+        if (url.toLowerCase(java.util.Locale.ROOT).matches(".*[.]mp4([?].*)?$")) {
+          downloadVideo(tab, url, MediaSniffer.Kind.FILE, agent, page);
+          return;
+        }
+      }
+      // MSE/blob players have no directly downloadable currentSrc. Use their captured
+      // HLS master manifest if one is unambiguous; do not present unrelated page URLs.
+      java.util.LinkedHashMap<String, MediaSniffer.Kind> masters = new java.util.LinkedHashMap<>();
+      java.util.LinkedHashMap<String, MediaSniffer.Kind> streams = new java.util.LinkedHashMap<>();
+      for (MediaSniffer.Found f : tab.media.snapshot()) {
+        if (f.kind != MediaSniffer.Kind.HLS) continue;
+        String path = Uri.parse(f.url).getPath();
+        path = path == null ? "" : path.toLowerCase(java.util.Locale.ROOT);
+        if (path.endsWith("/master.m3u8") || path.endsWith("/master_playlist.m3u8")) masters.put(f.url, f.kind);
+        else if (!path.matches(".*[/]index-v[^/]*-a[^/]*[.]m3u8$")) streams.put(f.url, f.kind);
+      }
+      java.util.LinkedHashMap<String, MediaSniffer.Kind> candidates = masters.isEmpty() ? streams : masters;
+      if (candidates.size() == 1) {
+        String chosen = candidates.keySet().iterator().next();
+        downloadVideo(tab, chosen, MediaSniffer.Kind.HLS, agent, page);
       } else {
-        // Blob/MSE players often expose no direct URL: use the existing detected-stream chooser.
-        videoDownload();
+        toastLong("Cannot identify this fullscreen video's stream reliably. No download started.");
       }
     });
   }
