@@ -2280,7 +2280,7 @@ public class MainActivity extends Activity {
             return;
           }
           String[] labels = new String[qualities.size()];
-          for (int i = 0; i < labels.length; i++) labels[i] = qualities.get(i).label();
+          for (int i = 0; i < labels.length; i++) labels[i] = qualities.get(i).label() + (i == 0 && !qualities.get(i).isAudioOnly() && (qualities.get(i).height > 0 || qualities.get(i).bandwidth > 0) ? "  ★ Recommended" : "");
           new AlertDialog.Builder(this).setTitle("Choose quality").setItems(labels, (d, n) -> {
             HlsPlaylist.Variant v = qualities.get(n);
             HlsPlaylist.Rendition audio = p.audioFor(v);
