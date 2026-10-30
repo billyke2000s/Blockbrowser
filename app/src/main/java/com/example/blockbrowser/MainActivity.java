@@ -1172,17 +1172,24 @@ public class MainActivity extends Activity {
       return;
     }
     groupBar.setVisibility(View.VISIBLE);
-    int count = 0;
-    for (Tab tab : tabs) if (active.groupId.equals(tab.groupId)) count++;
     for (Tab tab : tabs) {
       if (!active.groupId.equals(tab.groupId)) continue;
-      TextView chip = button(tab.favicon == null ? "●" : "◉", () -> selectTab(tabs.indexOf(tab)));
-      chip.setTextSize(19);
-      chip.setSingleLine(true);
-      chip.setGravity(Gravity.CENTER);
-      chip.setContentDescription(tab.displayTitle());
-      chip.setAlpha(tab == active ? 1f : 0.65f);
-      groupBar.addView(chip, new LinearLayout.LayoutParams(0, dp(42), 1));
+      android.widget.FrameLayout tile = new android.widget.FrameLayout(this);
+      android.widget.ImageView favicon = new android.widget.ImageView(this);
+      favicon.setImageBitmap(tab.favicon);
+      favicon.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+      favicon.setVisibility(tab.favicon == null ? View.GONE : View.VISIBLE);
+      android.widget.FrameLayout.LayoutParams iconLp = new android.widget.FrameLayout.LayoutParams(dp(23), dp(23), Gravity.CENTER);
+      tile.addView(favicon, iconLp);
+      TextView fallback = button("●", () -> selectTab(tabs.indexOf(tab)));
+      fallback.setVisibility(tab.favicon == null ? View.VISIBLE : View.GONE);
+      tile.addView(fallback, new android.widget.FrameLayout.LayoutParams(-1, -1));
+      tile.setContentDescription(tab.displayTitle());
+      tile.setOnClickListener(v -> selectTab(tabs.indexOf(tab)));
+      tile.setBackgroundColor(tab == active ? 0xff35527e : PANEL);
+      LinearLayout.LayoutParams tileLp = new LinearLayout.LayoutParams(dp(44), dp(42));
+      tileLp.setMargins(dp(3), 0, dp(3), 0);
+      groupBar.addView(tile, tileLp);
     }
     TextView plus = button("+", () -> {
       Tab created = newTab(homeUrl());
