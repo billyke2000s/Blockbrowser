@@ -692,7 +692,8 @@ public class MainActivity extends Activity {
 
   void hideCustomView() {
     if (customView == null) return;
-    if (websiteVideoWebView != null) setWebsiteVideoAspect(-1);
+    // Restore any explicit aspect override before dismissing the fullscreen view.
+    if (websiteVideoWebView != null && websiteAspectMode != -1) setWebsiteVideoAspect(-1);
     if (websiteAspectFade != null) handler.removeCallbacks(websiteAspectFade);
     if (websiteAspectButton != null) {
       websiteAspectButton.animate().cancel();
@@ -717,7 +718,7 @@ public class MainActivity extends Activity {
 
   void showWebsiteAspectControl(WebView web) {
     websiteVideoWebView = web;
-    websiteAspectMode = 0;
+    websiteAspectMode = -1;
     websiteAspectButton = new TextView(this);
     websiteAspectButton.setText("\u25ad");
     websiteAspectButton.setContentDescription("Aspect ratio: " + WEBSITE_ASPECT_LABELS[0]);
@@ -757,7 +758,7 @@ public class MainActivity extends Activity {
     FrameLayout.LayoutParams layout = new FrameLayout.LayoutParams(dp(48), dp(48), Gravity.TOP | Gravity.END);
     layout.setMargins(dp(16), dp(24), dp(16), 0);
     outer.addView(websiteAspectButton, layout);
-    setWebsiteVideoAspect(0);
+    // Do not alter the website video CSS just because fullscreen controls appeared.
     showWebsiteAspectButton();
   }
 
@@ -1571,8 +1572,7 @@ public class MainActivity extends Activity {
   void applyUserAgent(Tab tab, WebSettings s) {
     if (!tab.desktop) {
       s.setUserAgentString(null);
-      // Honour the site's responsive viewport rather than forcing narrow WebView layout.
-      s.setUseWideViewPort(true);
+      s.setUseWideViewPort(false);
       s.setLoadWithOverviewMode(false);
       return;
     }
