@@ -110,13 +110,23 @@ final class TabSwitcher {
         ItemTouchHelper.LEFT | ItemTouchHelper.RIGHT) {
       @Override public boolean onMove(@NonNull RecyclerView rv, @NonNull RecyclerView.ViewHolder from, @NonNull RecyclerView.ViewHolder to) {
         int a = from.getBindingAdapterPosition(), b = to.getBindingAdapterPosition();
-        if (selectedGroup != null) return false;
         if (a < 0 || b < 0 || a >= entries.size() || b >= entries.size()) return false;
         Object source = entries.get(a), target = entries.get(b);
         if (!(source instanceof Tab)) return false;
         if (dragSource == null) dragSource = (Tab) source;
-        dragTarget = target instanceof Tab ? (Tab) target : firstTabInGroup((String) target);
-        // Do not reorder while hovering: a drop onto a card means grouping, not moving.
+        if (target instanceof String) {
+          // A group card is a drop target; hovering over ordinary tabs is
+          // reordering, not an implicit request to group them.
+          dragTarget = firstTabInGroup((String) target);
+          return dragTarget != null;
+        }
+        dragTarget = null;
+        Tab fromTab = (Tab) source, toTab = (Tab) target;
+        int fromIndex = host.tabs().indexOf(fromTab), toIndex = host.tabs().indexOf(toTab);
+        if (fromIndex < 0 || toIndex < 0 || fromIndex == toIndex) return false;
+        host.move(fromIndex, toIndex);
+        java.util.Collections.swap(entries, a, b);
+        adapter.notifyItemMoved(a, b);
         return true;
       }
       @Override public int getSwipeDirs(@NonNull RecyclerView rv, @NonNull RecyclerView.ViewHolder vh) {
@@ -136,7 +146,8 @@ final class TabSwitcher {
       }
       @Override public void clearView(@NonNull RecyclerView rv, @NonNull RecyclerView.ViewHolder vh) {
         super.clearView(rv, vh);
-        if (dragSource != null && dragTarget != null && dragSource != dragTarget) host.groupDropped(dragSource, dragTarget);
+        if (selectedGroup == null && dragSource != null && dragTarget != null
+            && dragSource != dragTarget) host.groupDropped(dragSource, dragTarget);
         dragSource = null;
         dragTarget = null;
         refresh(); // redraw the "current tab" outline after a move
