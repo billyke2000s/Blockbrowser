@@ -137,7 +137,7 @@ final class PrivacyChart {
         root.addView(text(a,date+"  ·  "+days.get(date)+" blocked",14,ListPanel.MUTED));
       }
     }
-    TextView explanation=text(a,"The doughnut shows currently open page counters, which reset on navigation. The total and domain rankings include earlier pages. Ads, trackers and malware cannot be accurately separated using the current combined blocklist.",13,ListPanel.MUTED);
+    TextView explanation=text(a,"The doughnut shows currently open page counters when available, otherwise saved blocked-domain totals. Open-page counters reset on navigation. The total and domain rankings include earlier pages. Ads, trackers and malware cannot be accurately separated using the current combined blocklist.",13,ListPanel.MUTED);
     explanation.setPadding(0,a.dp(24),0,a.dp(12));
     root.addView(explanation);
     LinearLayout buttons=new LinearLayout(a);
