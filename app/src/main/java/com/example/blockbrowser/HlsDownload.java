@@ -81,6 +81,15 @@ final class HlsDownload {
           if (code >= 400) throw new HttpError(code);
           Response r = new Response();
           r.finalUrl = current;
+          // A partial response must begin at the requested byte. Otherwise we'd
+          // concatenate the wrong bytes into a media segment and produce a broken MP4.
+          if (offset >= 0 && code == 206) {
+            String range = c.getHeaderField("Content-Range");
+            if (range == null || !range.startsWith("bytes " + offset + "-"))
+              throw new IOException("server returned the wrong byte range");
+          }
+          if (offset >= 0 && code != 200 && code != 206)
+            throw new IOException("server did not honour the media byte range (HTTP " + code + ")");
           // A server that ignores Range sends the whole file (200); keep only the requested part.
           long skip = (offset >= 0 && code == 200) ? offset : 0;
           long want = (offset >= 0 && length >= 0) ? length : -1;
