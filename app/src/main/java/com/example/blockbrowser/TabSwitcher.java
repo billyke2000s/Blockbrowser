@@ -41,6 +41,7 @@ final class TabSwitcher {
     void newTabInGroup(String groupName);
     int groupColor(String name);
     void chooseGroupColor(String name);
+    void removeTabFromGroup(Tab tab);
   }
 
   private final MainActivity activity;
@@ -88,7 +89,10 @@ final class TabSwitcher {
           }).show();
     });
     TextView more = headerButton("⋮", "Tab options", null);
-    more.setOnClickListener(host::showMenu);
+    more.setOnClickListener(v -> {
+      if (selectedGroup == null) host.showMenu(v);
+      else openGroupMenu(selectedGroup);
+    });
     TextView done = headerButton("Done", "Done", dialog::dismiss);
     done.setTextSize(15);
     header.addView(add);
@@ -117,7 +121,11 @@ final class TabSwitcher {
       }
       @Override public void onSwiped(@NonNull RecyclerView.ViewHolder vh, int direction) {
         int i = vh.getBindingAdapterPosition();
-        if (i >= 0 && i < entries.size() && entries.get(i) instanceof Tab) closeAt(host.tabs().indexOf(entries.get(i)));
+        if (i >= 0 && i < entries.size() && entries.get(i) instanceof Tab) {
+          Tab tab = (Tab) entries.get(i);
+          if (selectedGroup != null) { host.removeTabFromGroup(tab); refresh(); }
+          else closeAt(host.tabs().indexOf(tab));
+        }
       }
       @Override public void clearView(@NonNull RecyclerView rv, @NonNull RecyclerView.ViewHolder vh) {
         super.clearView(rv, vh);
@@ -381,9 +389,10 @@ final class TabSwitcher {
       } else {
         Tab tab = (Tab) entry;
         h.thumb.setVisibility(View.VISIBLE);
+        h.placeholder.setVisibility(View.VISIBLE);
         h.close.setVisibility(View.VISIBLE);
         h.group.setText("⊞");
-        h.group.setContentDescription("Add tab to group");
+        h.group.setContentDescription(selectedGroup == null ? "Add tab to group" : "Move or remove tab from group");
         FrameLayout preview = (FrameLayout) h.thumb.getParent();
         for (int i = preview.getChildCount() - 1; i >= 2; i--) preview.removeViewAt(i);
         h.bind(tab, host.tabs().indexOf(tab) == host.currentIndex());
