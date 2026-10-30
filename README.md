@@ -4,7 +4,7 @@
 
 <br>
 
-[![Latest release](https://img.shields.io/badge/Latest-Releases-55d7ff?style=flat-square&labelColor=0b1428)](https://github.com/billyke2000s/Blockbrowser/releases/latest)
+[Latest release](https://github.com/billyke2000s/Blockbrowser/releases/latest)
 [![Build](https://github.com/billyke2000s/Blockbrowser/actions/workflows/android.yml/badge.svg?branch=main)](https://github.com/billyke2000s/Blockbrowser/actions/workflows/android.yml)
 [![Downloads](https://img.shields.io/github/downloads/billyke2000s/Blockbrowser/total?style=flat-square&color=5eead4&labelColor=0b1428)](https://github.com/billyke2000s/Blockbrowser/releases)
 [![Android 8.0+](https://img.shields.io/badge/Android-8.0%2B-3ddc84?style=flat-square&logo=android&logoColor=white&labelColor=0b1428)](#-install)
@@ -40,7 +40,7 @@ Private windows, smart tabs, HLS video downloads and a clean dark interface — 
 <td valign="top">🔎 <b>Smart address bar</b><br><sub>Suggestions from bookmarks and history</sub></td>
 </tr>
 <tr>
-<td valign="top">🗂️ <b>Tabs</b><br><sub>Previews, swipe to close, drag to reorder</sub></td>
+<td valign="top">🗂️ <b>Tabs</b><br><sub>Previews, groups, swipe to close or remove from group</sub></td>
 <td valign="top">🎬 <b>Video downloads</b><br><sub>Files and HLS streams, saved as MP4</sub></td>
 </tr>
 <tr>
@@ -61,7 +61,7 @@ Private windows, smart tabs, HLS video downloads and a clean dark interface — 
 - **Private windows** — a separate process with its own cookies and storage, deleted when the window closes, even after a crash or force-stop. [More ↓](#%EF%B8%8F-private-browsing)
 - **Home page** — Block Browser's own start and new-tab page: a search box (your chosen engine, Google by default), shortcuts to your most visited sites, and how many ads and trackers were blocked today, this session and in total, with a 7-day chart and the most-blocked domains. Built into the app, never loaded from the internet. **Settings → Homepage** can switch to any other address.
 - **Smart address bar** — suggestions from your bookmarks and history with titles and site icons, ranked by how well the address matches and how often and recently you visited. Optional suggestions from your search engine (off by default). Ten search engines to choose from.
-- **Tabs** — a grid of open tabs with page previews: swipe or tap × to close, Undo, drag to reorder, duplicate, close others or all. Links from other apps open in a new tab. Tabs are restored after a restart and only load when you open them.
+- **Tabs** — a grid of open tabs with page previews and grouped cards: tap a group to see its tabs, create or rename groups, choose a group colour, or ungroup tabs. Swipe tabs in the main grid to close, or swipe inside a group to remove a tab from it. Undo, duplicate, close others or all. Links from other apps open in a new tab. Tabs are restored after a restart and only load when you open them.
 - **Video downloads** — plain video files and HLS streams (`.m3u8`), the format most news, sports and social sites use. Pick a quality and it downloads in the background, saved as one MP4. Built-in player with aspect-ratio controls (fit, fill, zoom, 16:9, 4:3). [Details ↓](#-video-downloads)
 - **Privacy controls** — third-party cookies blocked by default, tracking parameters (`utm_*`, `fbclid`, `gclid`…) removed from links, choose exactly what to clear, and clear cookies and data for one site. Certificate errors are never bypassed.
 - **Site permissions** — camera, microphone, location and protected media are asked per site and remembered. Review or change them in the site information panel or **Settings → Privacy and security → Site settings**.
@@ -110,7 +110,7 @@ Private windows, smart tabs, HLS video downloads and a clean dark interface — 
 | To… | Do this |
 |---|---|
 | Open the menu | Tap **⋮**. Back, forward, reload, bookmark (☆) and site information are along its top. |
-| Switch tabs | Tap the square with the tab count. |
+| Switch tabs | Tap the square with the tab count. Tap a grouped card to open that group. |
 | See site information | Tap 🔒 or ⚠ at the left of the address bar: connection, blocked trackers, permissions and site data. |
 | Change settings | **⋮ → Settings** for search engine, search suggestions, homepage, text size and darkening.<br>**⋮ → Privacy and security** for ad blocking, tracking-parameter removal, third-party cookies and site settings. |
 | Download a video | Start the video playing, then **⋮ → Download video**. If the page has several, pick one; for streams with several qualities, pick the quality. Streams download in the background with a progress notification and are saved to Downloads as an MP4. |
@@ -191,7 +191,7 @@ Block Browser is built on Android System WebView, which sets some hard limits.
 - **Search suggestions** use the search engines' informal endpoints, which can change. CI checks them on every build. At the time of writing, Brave Search's endpoint returned a bot-check page to CI (untested from phones), and Startpage and Mojeek have none.
 - **Private windows** need Android 9 or newer. Private downloads are saved to your Downloads folder like any other.
 - **Darken websites** affects pages without their own dark design; sites with a dark mode follow the app's dark theme anyway on Android 13+.
-- **Tab groups** and browser extensions aren't supported.
+- **Tab groups** support grouped preview cards, names and colours, but dragging a tab out of a group is not yet supported; swipe a tab inside its group to remove it instead. Browser extensions aren't supported.
 
 </details>
 
