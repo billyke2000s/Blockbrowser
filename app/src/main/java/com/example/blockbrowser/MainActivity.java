@@ -1092,6 +1092,8 @@ public class MainActivity extends Activity {
       @Override public void groupTab(int index) { chooseGroupForTab(tabs.get(index)); }
       @Override public void showMenu(View anchor) { tabMenu(anchor); }
       @Override public boolean isPrivate() { return MainActivity.this.isPrivate(); }
+      @Override public void renameGroup(String name) { renameTabGroup(name); }
+      @Override public void ungroup(String name) { for (Tab t : tabs) if (name.equals(t.groupId)) t.groupId = null; groupChanged(); }
     });
     switcher.show();
   }
@@ -1157,6 +1159,19 @@ public class MainActivity extends Activity {
         }).show();
   }
 
+  void renameTabGroup(String oldName) {
+    EditText input = new EditText(this);
+    input.setSingleLine(true);
+    input.setText(oldName);
+    new AlertDialog.Builder(this).setTitle("Rename tab group").setView(input)
+        .setPositiveButton("Save", (d, w) -> {
+          String next = input.getText().toString().trim();
+          if (next.isEmpty() || next.equals(oldName)) return;
+          for (Tab tab : tabs) if (oldName.equals(tab.groupId)) tab.groupId = next;
+          groupChanged();
+        }).setNegativeButton("Cancel", null).show();
+  }
+
   void groupChanged() {
     updateGroupBar();
     scheduleSessionSave();
@@ -1200,7 +1215,7 @@ public class MainActivity extends Activity {
     });
     plus.setContentDescription("New tab in group");
     groupBar.addView(plus);
-    TextView expand = button("⌃", () -> showTabSwitcher());
+    TextView expand = button("⌃", () -> { showTabSwitcher(); if (switcher != null) switcher.showGroup(active.groupId); });
     expand.setContentDescription("Show tabs in group");
     groupBar.addView(expand);
   }
