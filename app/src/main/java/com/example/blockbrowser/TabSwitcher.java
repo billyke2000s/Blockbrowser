@@ -30,6 +30,7 @@ final class TabSwitcher {
     void select(int index);
     void close(int index);
     void move(int from, int to);
+    void moveIntoGroup(int from, int to);
     void newTab();
     void groupTab(int index);
     void showMenu(View anchor);
@@ -83,6 +84,7 @@ final class TabSwitcher {
       @Override public boolean onMove(@NonNull RecyclerView rv, @NonNull RecyclerView.ViewHolder from, @NonNull RecyclerView.ViewHolder to) {
         int a = from.getBindingAdapterPosition(), b = to.getBindingAdapterPosition();
         if (a < 0 || b < 0) return false;
+        host.moveIntoGroup(a, b);
         host.move(a, b);
         adapter.notifyItemMoved(a, b);
         return true;
