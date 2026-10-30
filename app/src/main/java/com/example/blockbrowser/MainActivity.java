@@ -2325,9 +2325,9 @@ public class MainActivity extends Activity {
   /** Prefer the current fullscreen player's source over unrelated videos and ads on the page. */
   /** Download from the fullscreen player's own menu, never open the page-wide candidate picker. */
   void downloadPlayingVideo() {
-    Tab tab = currentTab();
     WebView web = websiteVideoWebView;
-    if (tab == null || web == null) {
+    Tab tab = web == null ? null : tabFor(web);
+    if (tab == null || web == null || currentTab() != tab) {
       toastLong("The fullscreen video player is no longer active");
       return;
     }
