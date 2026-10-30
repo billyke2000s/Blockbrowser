@@ -77,7 +77,7 @@ public class HlsDownloadTest {
           int to = r[1].isEmpty() ? body.length - 1 : Integer.parseInt(r[1]);
           byte[] part = new byte[to - from + 1];
           System.arraycopy(body, from, part, 0, part.length);
-          respond(out, "206 Partial Content", "", part);
+          respond(out, "206 Partial Content", "Content-Range: bytes " + from + "-" + to + "/" + body.length + "\r\n", part);
         } else {
           respond(out, "200 OK", "", body);
         }
