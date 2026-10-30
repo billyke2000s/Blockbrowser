@@ -39,6 +39,8 @@ final class TabSwitcher {
     void ungroup(String groupName);
     void closeGroup(String groupName);
     void newTabInGroup(String groupName);
+    int groupColor(String name);
+    void chooseGroupColor(String name);
   }
 
   private final MainActivity activity;
@@ -208,10 +210,11 @@ final class TabSwitcher {
 
   private void openGroupMenu(String name) {
     new android.app.AlertDialog.Builder(activity).setTitle(name)
-        .setItems(new String[]{"Open group", "Rename group", "Ungroup tabs", "Close group"}, (d, which) -> {
+        .setItems(new String[]{"Open group", "Rename group", "Change colour", "Ungroup tabs", "Close group"}, (d, which) -> {
           if (which == 0) showGroup(name);
           else if (which == 1) host.renameGroup(name);
-          else if (which == 2) host.ungroup(name);
+          else if (which == 2) host.chooseGroupColor(name);
+          else if (which == 3) host.ungroup(name);
           else host.closeGroup(name);
           refresh();
         }).show();
@@ -358,7 +361,7 @@ final class TabSwitcher {
         mosaic.setRowCount(2);
         for (int j = 0; j < 4; j++) {
           FrameLayout cell = new FrameLayout(activity);
-          cell.setBackground(activity.rounded(0xffa9c1ec, 8));
+          cell.setBackground(activity.rounded(host.groupColor(name), 8));
           android.widget.ImageView image = new android.widget.ImageView(activity);
           image.setScaleType(ImageView.ScaleType.CENTER_CROP);
           if (j < members.size() && members.get(j).thumbnail != null) image.setImageBitmap(members.get(j).thumbnail);
@@ -371,7 +374,7 @@ final class TabSwitcher {
           mosaic.addView(cell, lp);
         }
         preview.addView(mosaic, new FrameLayout.LayoutParams(-1, -1));
-        h.card.setBackground(activity.rounded(0xffa9c1ec, 14));
+        h.card.setBackground(activity.rounded(host.groupColor(name), 14));
         h.card.setContentDescription("Group " + name + ", " + members.size() + " tabs");
         h.card.setOnClickListener(v -> showGroup(name));
         h.group.setOnClickListener(v -> openGroupMenu(name));
