@@ -37,6 +37,7 @@ final class TabSwitcher {
     boolean isPrivate();
     void renameGroup(String oldName);
     void ungroup(String groupName);
+    void closeGroup(String groupName);
   }
 
   private final MainActivity activity;
@@ -47,6 +48,7 @@ final class TabSwitcher {
   private final Adapter adapter = new Adapter();
   private String selectedGroup = null;
   private Tab dragSource, dragTarget;
+  private final java.util.ArrayList<Object> entries = new java.util.ArrayList<>();
 
   TabSwitcher(MainActivity activity, Host host) {
     this.activity = activity;
@@ -98,16 +100,17 @@ final class TabSwitcher {
       @Override public boolean onMove(@NonNull RecyclerView rv, @NonNull RecyclerView.ViewHolder from, @NonNull RecyclerView.ViewHolder to) {
         int a = from.getBindingAdapterPosition(), b = to.getBindingAdapterPosition();
         if (selectedGroup != null) return false;
-        if (a < 0 || b < 0) return false;
-        if (dragSource == null) dragSource = host.tabs().get(a);
-        dragTarget = host.tabs().get(b);
+        if (a < 0 || b < 0 || a >= entries.size() || b >= entries.size()) return false;
+        Object source = entries.get(a), target = entries.get(b);
+        if (!(source instanceof Tab)) return false;
+        if (dragSource == null) dragSource = (Tab) source;
+        dragTarget = target instanceof Tab ? (Tab) target : firstTabInGroup((String) target);
         // Do not reorder while hovering: a drop onto a card means grouping, not moving.
-        return true;
         return true;
       }
       @Override public void onSwiped(@NonNull RecyclerView.ViewHolder vh, int direction) {
         int i = vh.getBindingAdapterPosition();
-        if (i >= 0 && i < adapter.visibleTabs().size()) closeAt(host.tabs().indexOf(adapter.visibleTabs().get(i)));
+        if (i >= 0 && i < entries.size() && entries.get(i) instanceof Tab) closeAt(host.tabs().indexOf(entries.get(i)));
       }
       @Override public void clearView(@NonNull RecyclerView rv, @NonNull RecyclerView.ViewHolder vh) {
         super.clearView(rv, vh);
@@ -193,6 +196,22 @@ final class TabSwitcher {
     return t;
   }
 
+  private Tab firstTabInGroup(String name) {
+    for (Tab t : host.tabs()) if (name.equals(t.groupId)) return t;
+    return null;
+  }
+
+  private void openGroupMenu(String name) {
+    new android.app.AlertDialog.Builder(activity).setTitle(name)
+        .setItems(new String[]{"Open group", "Rename group", "Ungroup tabs", "Close group"}, (d, which) -> {
+          if (which == 0) showGroup(name);
+          else if (which == 1) host.renameGroup(name);
+          else if (which == 2) host.ungroup(name);
+          else host.closeGroup(name);
+          refresh();
+        }).show();
+  }
+
   private void closeAt(int i) {
     host.close(i);
     if (host.tabs().isEmpty()) { dialog.dismiss(); return; }
@@ -201,6 +220,13 @@ final class TabSwitcher {
 
   void refresh() {
     int n = host.tabs().size();
+    entries.clear();
+    java.util.HashSet<String> seen = new java.util.HashSet<>();
+    for (Tab tab : host.tabs()) {
+      if (selectedGroup != null) { if (selectedGroup.equals(tab.groupId)) entries.add(tab); }
+      else if (tab.groupId == null) entries.add(tab);
+      else if (seen.add(tab.groupId)) entries.add(tab.groupId);
+    }
     title.setText(selectedGroup == null ? (n == 1 ? "1 tab" : n + " tabs") : selectedGroup + " ▾");
     adapter.notifyDataSetChanged();
   }
@@ -296,14 +322,7 @@ final class TabSwitcher {
   }
 
   private final class Adapter extends RecyclerView.Adapter<Holder> {
-    @Override public int getItemCount() { return visibleTabs().size(); }
-
-    private List<Tab> visibleTabs() {
-      if (selectedGroup == null) return host.tabs();
-      java.util.ArrayList<Tab> result = new java.util.ArrayList<>();
-      for (Tab tab : host.tabs()) if (selectedGroup.equals(tab.groupId)) result.add(tab);
-      return result;
-    }
+    @Override public int getItemCount() { return entries.size(); }
 
     @NonNull @Override public Holder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
       LinearLayout card = new LinearLayout(activity);
@@ -314,16 +333,58 @@ final class TabSwitcher {
     }
 
     @Override public void onBindViewHolder(@NonNull Holder h, int position) {
-      Tab tab = visibleTabs().get(position);
-      h.bind(tab, host.tabs().indexOf(tab) == host.currentIndex());
-      h.card.setOnClickListener(v -> {
-        int i = host.tabs().indexOf(tab);
-        if (i < 0) return;
-        dialog.dismiss();
-        host.select(i);
-      });
-      h.close.setOnClickListener(v -> { int i = host.tabs().indexOf(tab); if (i >= 0) closeAt(i); });
-      h.group.setOnClickListener(v -> { int i = host.tabs().indexOf(tab); if (i >= 0) host.groupTab(i); });
+      Object entry = entries.get(position);
+      if (entry instanceof String) {
+        String name = (String) entry;
+        java.util.ArrayList<Tab> members = new java.util.ArrayList<>();
+        for (Tab t : host.tabs()) if (name.equals(t.groupId)) members.add(t);
+        h.title.setText(name + " · " + members.size() + " tabs");
+        h.favicon.setVisibility(View.GONE);
+        h.group.setText("⋮");
+        h.close.setVisibility(View.GONE);
+        h.thumb.setVisibility(View.GONE);
+        h.placeholder.setVisibility(View.VISIBLE);
+        h.placeholder.setText("");
+        FrameLayout preview = (FrameLayout) h.thumb.getParent();
+        for (int i = preview.getChildCount() - 1; i >= 2; i--) preview.removeViewAt(i);
+        android.widget.GridLayout mosaic = new android.widget.GridLayout(activity);
+        mosaic.setColumnCount(2);
+        mosaic.setRowCount(2);
+        for (int j = 0; j < 4; j++) {
+          FrameLayout cell = new FrameLayout(activity);
+          cell.setBackground(activity.rounded(0xffa9c1ec, 8));
+          android.widget.ImageView image = new android.widget.ImageView(activity);
+          image.setScaleType(ImageView.ScaleType.CENTER_CROP);
+          if (j < members.size() && members.get(j).thumbnail != null) image.setImageBitmap(members.get(j).thumbnail);
+          cell.addView(image, new FrameLayout.LayoutParams(-1, -1));
+          android.widget.GridLayout.LayoutParams lp = new android.widget.GridLayout.LayoutParams(
+              android.widget.GridLayout.spec(j / 2, 1f), android.widget.GridLayout.spec(j % 2, 1f));
+          lp.width = 0;
+          lp.height = 0;
+          lp.setMargins(activity.dp(3), activity.dp(3), activity.dp(3), activity.dp(3));
+          mosaic.addView(cell, lp);
+        }
+        preview.addView(mosaic, new FrameLayout.LayoutParams(-1, -1));
+        h.card.setBackground(activity.rounded(0xffa9c1ec, 14));
+        h.card.setOnClickListener(v -> showGroup(name));
+        h.group.setOnClickListener(v -> openGroupMenu(name));
+      } else {
+        Tab tab = (Tab) entry;
+        h.thumb.setVisibility(View.VISIBLE);
+        h.close.setVisibility(View.VISIBLE);
+        h.group.setText("⊞");
+        FrameLayout preview = (FrameLayout) h.thumb.getParent();
+        for (int i = preview.getChildCount() - 1; i >= 2; i--) preview.removeViewAt(i);
+        h.bind(tab, host.tabs().indexOf(tab) == host.currentIndex());
+        h.card.setOnClickListener(v -> {
+          int i = host.tabs().indexOf(tab);
+          if (i < 0) return;
+          dialog.dismiss();
+          host.select(i);
+        });
+        h.close.setOnClickListener(v -> { int i = host.tabs().indexOf(tab); if (i >= 0) closeAt(i); });
+        h.group.setOnClickListener(v -> { int i = host.tabs().indexOf(tab); if (i >= 0) host.groupTab(i); });
+      }
     }
   }
 }
