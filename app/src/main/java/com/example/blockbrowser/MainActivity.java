@@ -1753,6 +1753,14 @@ public class MainActivity extends Activity {
   }
 
   final class TabChromeClient extends WebChromeClient {
+    // WebView's fallback poster can render as a giant play icon before a site supplies
+    // its own video poster. Use a tiny neutral bitmap instead of that placeholder.
+    @Override public Bitmap getDefaultVideoPoster() {
+      Bitmap poster = Bitmap.createBitmap(2, 2, Bitmap.Config.ARGB_8888);
+      poster.eraseColor(Color.BLACK);
+      return poster;
+    }
+
     final Tab tab;
     TabChromeClient(Tab tab) { this.tab = tab; }
 
