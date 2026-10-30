@@ -135,6 +135,8 @@ public class StreamDownloadService extends Service {
         }
         @Override public boolean cancelled() { return stopAll || cancelId == job.id; }
       });
+      // Cancellation may arrive after the last network segment but before remuxing.
+      if (stopAll || cancelId == job.id) throw new HlsDownload.Cancelled();
       showProgress(progressNotification(job.title, "Saving video", 0, 0, job.id));
       File mp4 = new File(work, "out.mp4");
       File toSave;
@@ -150,12 +152,19 @@ public class StreamDownloadService extends Service {
         toSave = r.video;
         if (!r.videoFragmentedMp4) { job.mime = "video/mp2t"; job.title = job.title.replaceAll("\\.mp4$", ".ts"); }
       }
+      // Do not publish a completed download after the user cancelled during conversion.
+      if (stopAll || cancelId == job.id) throw new HlsDownload.Cancelled();
       Uri uri;
       try {
         uri = Downloads.saveFile(this, toSave, job.title, job.mime);
       } catch (IOException | RuntimeException save) {
         Log.w(TAG, "saving to Downloads failed", save);
         throw new IOException("couldn't save to Downloads (" + save.getMessage() + ")");
+      }
+      // A cancellation while MediaStore was writing must not leave a successful job.
+      if (stopAll || cancelId == job.id) {
+        try { getContentResolver().delete(uri, null, null); } catch (Exception ignored) {}
+        throw new HlsDownload.Cancelled();
       }
       job.size = toSave.length();
       job.resultUri = uri.toString();
