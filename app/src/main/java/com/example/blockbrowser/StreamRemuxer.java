@@ -117,8 +117,11 @@ final class StreamRemuxer {
           }
           if (time < 0) time = 0;
           if (t.lastUs != Long.MIN_VALUE && time <= t.lastUs) {
-            time = t.lastUs + Math.max(1, t.frameUs);
-            t.offsetUs = time - ex.getSampleTime();
+            // A small backward PTS step can be normal frame reordering, not a
+            // clock reset. Do not shift all following timestamps by a frame:
+            // doing so repeatedly stretches or accelerates the resulting MP4.
+            // Only a genuine discontinuity above JUMP_BACK_US changes offsetUs.
+            time = t.lastUs + 1;
           }
           if (t.firstUs == Long.MIN_VALUE) t.firstUs = time;
           t.lastUs = time;
