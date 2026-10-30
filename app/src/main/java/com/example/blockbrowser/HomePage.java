@@ -31,6 +31,7 @@ final class HomePage {
   static final String ORIGIN = "https://appassets.androidplatform.net";
   static final String URL = ORIGIN + "/home";
   static final String STATS_URL = ORIGIN + "/home/statistics";
+  static final String HIDE_URL = ORIGIN + "/home/hide-site?host=";
 
   private HomePage() {}
 
@@ -44,6 +45,7 @@ final class HomePage {
   }
 
   static boolean isStatsLink(String url) { return url != null && url.startsWith(STATS_URL); }
+  static boolean isHideLink(String url) { return url != null && url.startsWith(HIDE_URL); }
 
   /** What the page needs, gathered on a background thread (WebView's request thread). */
   static final class Data {
@@ -99,10 +101,11 @@ final class HomePage {
       for (HistoryStore.Entry e : a.history().topSites(60)) {
         if (isHome(e.url) || e.host.isEmpty()) continue;
         String host = e.host.startsWith("www.") ? e.host.substring(4) : e.host;
+        if (a.getSharedPreferences("hidden_home_sites", android.content.Context.MODE_PRIVATE).getBoolean(host, false)) continue;
         if (!hosts.add(host)) continue;
         String origin = UrlTools.origin(e.url);
         String title = shortTitle(e.title, host);
-        d.shortcuts.add(new String[]{origin + "/", title, iconDataUri(a.favicons().get(e.host))});
+        d.shortcuts.add(new String[]{origin + "/", title, iconDataUri(a.favicons().get(e.host)), host});
         if (d.shortcuts.size() >= 8) break;
       }
     }
@@ -192,6 +195,7 @@ final class HomePage {
      .append(".shortcuts{display:grid;grid-template-columns:repeat(4,1fr);gap:14px 8px;margin:26px 0 8px}")
      .append(".sc{display:flex;flex-direction:column;align-items:center;gap:7px;text-decoration:none;color:var(--text);font-size:12px;min-width:0}")
      .append(".sc span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}")
+     .append(".shortcut{position:relative;min-width:0}.remove-site{position:absolute;top:-8px;right:2px;width:25px;height:25px;border-radius:50%;background:#33435b;color:white;text-align:center;line-height:25px;text-decoration:none;font-size:17px;z-index:2}")
      .append(".ic{width:52px;height:52px;border-radius:16px;background:var(--card);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:20px;color:var(--accent);overflow:hidden}")
      .append(".ic img{width:28px;height:28px}")
      .append("h2{font-size:14px;font-weight:700;color:var(--accent);margin:28px 4px 10px;text-transform:none}")
@@ -233,10 +237,12 @@ final class HomePage {
     if (!d.shortcuts.isEmpty()) {
       h.append("<nav class=shortcuts aria-label='Most visited'>");
       for (String[] s : d.shortcuts) {
-        h.append("<a class=sc href='").append(esc(s[0])).append("'><div class=ic>");
+        h.append("<div class=shortcut><a class=sc href='").append(esc(s[0])).append("'><div class=ic>");
         if (s[2] != null) h.append("<img alt='' src='").append(s[2]).append("'>");
         else h.append(esc(s[1].isEmpty() ? "?" : s[1].substring(0, 1).toUpperCase(Locale.ROOT)));
-        h.append("</div><span>").append(esc(s[1])).append("</span></a>");
+        h.append("</div><span>").append(esc(s[1])).append("</span></a>")
+         .append("<a class=remove-site aria-label='Remove suggested website' href='").append(HIDE_URL)
+         .append(esc(s[3])).append("'>&times;</a></div>");
       }
       h.append("</nav>");
     }
