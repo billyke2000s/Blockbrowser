@@ -1079,6 +1079,14 @@ public class MainActivity extends Activity {
       @Override public void select(int index) { selectTab(index); }
       @Override public void close(int index) { closeTab(index, true); }
       @Override public void move(int from, int to) { moveTab(from, to); }
+      @Override public void moveIntoGroup(int from, int to) {
+        if (from < 0 || to < 0 || from >= tabs.size() || to >= tabs.size()) return;
+        Tab target = tabs.get(to);
+        if (target.groupId != null && !target.groupId.equals(tabs.get(from).groupId)) {
+          tabs.get(from).groupId = target.groupId;
+          groupChanged();
+        }
+      }
       @Override public void newTab() { MainActivity.this.newTab(homeUrl()); }
       @Override public void groupTab(int index) { chooseGroupForTab(tabs.get(index)); }
       @Override public void showMenu(View anchor) { tabMenu(anchor); }
