@@ -59,7 +59,7 @@ final class PrivacyChart {
     for (Tab t : tabs) if (t.blocked.get() > 0) visible++;
     // Closed tabs and navigations reset per-page counters. Fall back to saved
     // blocked-domain counts so the chart remains useful across sessions.
-    if (visible == 0 && a.blockingStats != null) {
+    if (a.blockingStats != null) {
       Map<String, Long> saved = a.blockingStats.topDomains();
       List<Map.Entry<String, Long>> rankedChart = new ArrayList<>(saved.entrySet());
       rankedChart.sort((x, y) -> Long.compare(y.getValue(), x.getValue()));
@@ -137,7 +137,7 @@ final class PrivacyChart {
         root.addView(text(a,date+"  ·  "+days.get(date)+" blocked",14,ListPanel.MUTED));
       }
     }
-    TextView explanation=text(a,"The doughnut shows currently open page counters when available, otherwise saved blocked-domain totals. Open-page counters reset on navigation. The total and domain rankings include earlier pages. Ads, trackers and malware cannot be accurately separated using the current combined blocklist.",13,ListPanel.MUTED);
+    TextView explanation=text(a,"Saved blocked-domain totals appear above whenever available, alongside current-page counters when present. Open-page counters reset on navigation. The saved domain list retains up to 200 domains, so its chart may not cover the full lifetime total. Ads, trackers and malware cannot be accurately separated using the current combined blocklist.",13,ListPanel.MUTED);
     explanation.setPadding(0,a.dp(24),0,a.dp(12));
     root.addView(explanation);
     LinearLayout buttons=new LinearLayout(a);
