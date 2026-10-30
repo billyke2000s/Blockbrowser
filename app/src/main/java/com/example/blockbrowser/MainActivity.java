@@ -1674,6 +1674,14 @@ public class MainActivity extends Activity {
       String s = uri.toString();
       String scheme = uri.getScheme() == null ? "" : uri.getScheme().toLowerCase(Locale.ROOT);
       if (HomePage.isStatsLink(s)) { runOnUiThread(() -> PrivacyChart.show(MainActivity.this)); return true; }
+      if (HomePage.isHideLink(s) && request.isForMainFrame()) {
+        String host = uri.getQueryParameter("host");
+        if (host != null && host.matches("[a-zA-Z0-9.-]{1,253}")) {
+          getSharedPreferences("hidden_home_sites", MODE_PRIVATE).edit().putBoolean(host, true).apply();
+          runOnUiThread(() -> view.loadUrl(HomePage.URL));
+        }
+        return true;
+      }
       if (scheme.equals("http") || scheme.equals("https")) {
         if (request.isForMainFrame()) {
           tab.url = s;
