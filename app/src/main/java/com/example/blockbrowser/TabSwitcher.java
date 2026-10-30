@@ -87,8 +87,8 @@ final class TabSwitcher {
         if (a < 0 || b < 0) return false;
         if (dragSource == null) dragSource = host.tabs().get(a);
         dragTarget = host.tabs().get(b);
-        host.move(a, b);
-        adapter.notifyItemMoved(a, b);
+        // Do not reorder while hovering: a drop onto a card means grouping, not moving.
+        return true;
         return true;
       }
       @Override public void onSwiped(@NonNull RecyclerView.ViewHolder vh, int direction) {
