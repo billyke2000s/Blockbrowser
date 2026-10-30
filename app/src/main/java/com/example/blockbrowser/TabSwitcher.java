@@ -119,6 +119,13 @@ final class TabSwitcher {
         // Do not reorder while hovering: a drop onto a card means grouping, not moving.
         return true;
       }
+      @Override public int getSwipeDirs(@NonNull RecyclerView rv, @NonNull RecyclerView.ViewHolder vh) {
+        int i = vh.getBindingAdapterPosition();
+        // A group is a container, not a single tab. Never allow it to be
+        // dismissed by a gesture intended for individual tabs.
+        if (i < 0 || i >= entries.size() || !(entries.get(i) instanceof Tab)) return 0;
+        return super.getSwipeDirs(rv, vh);
+      }
       @Override public void onSwiped(@NonNull RecyclerView.ViewHolder vh, int direction) {
         int i = vh.getBindingAdapterPosition();
         if (i >= 0 && i < entries.size() && entries.get(i) instanceof Tab) {
@@ -222,8 +229,13 @@ final class TabSwitcher {
           if (which == 0) showGroup(name);
           else if (which == 1) host.renameGroup(name);
           else if (which == 2) host.chooseGroupColor(name);
-          else if (which == 3) host.ungroup(name);
-          else host.closeGroup(name);
+          else if (which == 3) {
+            host.ungroup(name);
+            if (name.equals(selectedGroup)) selectedGroup = null;
+          } else {
+            host.closeGroup(name);
+            if (name.equals(selectedGroup)) selectedGroup = null;
+          }
           refresh();
         }).show();
   }
@@ -252,7 +264,12 @@ final class TabSwitcher {
     refresh();
     dialog.show();
     int current = host.currentIndex();
-    if (current >= 0) grid.scrollToPosition(current);
+    if (current >= 0 && current < host.tabs().size()) {
+      Tab active = host.tabs().get(current);
+      Object visibleEntry = active.groupId == null ? active : active.groupId;
+      int visibleIndex = entries.indexOf(visibleEntry);
+      if (visibleIndex >= 0) grid.scrollToPosition(visibleIndex);
+    }
   }
 
   void showGroup(String group) {
