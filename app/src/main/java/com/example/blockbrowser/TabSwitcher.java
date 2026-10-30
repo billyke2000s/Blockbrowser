@@ -38,6 +38,7 @@ final class TabSwitcher {
     void renameGroup(String oldName);
     void ungroup(String groupName);
     void closeGroup(String groupName);
+    void newTabInGroup(String groupName);
   }
 
   private final MainActivity activity;
@@ -69,7 +70,11 @@ final class TabSwitcher {
     title.setTypeface(null, Typeface.BOLD);
     title.setPadding(activity.dp(8), 0, 0, 0);
     header.addView(title, new LinearLayout.LayoutParams(0, -2, 1));
-    TextView add = headerButton("+", "New tab", () -> { dialog.dismiss(); host.newTab(); });
+    TextView add = headerButton("+", "New tab", () -> {
+      String group = selectedGroup;
+      dialog.dismiss();
+      if (group == null) host.newTab(); else host.newTabInGroup(group);
+    });
     title.setOnClickListener(v -> {
       if (selectedGroup == null) return;
       new android.app.AlertDialog.Builder(activity).setTitle(selectedGroup)
@@ -341,6 +346,7 @@ final class TabSwitcher {
         h.title.setText(name + " · " + members.size() + " tabs");
         h.favicon.setVisibility(View.GONE);
         h.group.setText("⋮");
+        h.group.setContentDescription("Group options");
         h.close.setVisibility(View.GONE);
         h.thumb.setVisibility(View.GONE);
         h.placeholder.setVisibility(View.VISIBLE);
@@ -366,6 +372,7 @@ final class TabSwitcher {
         }
         preview.addView(mosaic, new FrameLayout.LayoutParams(-1, -1));
         h.card.setBackground(activity.rounded(0xffa9c1ec, 14));
+        h.card.setContentDescription("Group " + name + ", " + members.size() + " tabs");
         h.card.setOnClickListener(v -> showGroup(name));
         h.group.setOnClickListener(v -> openGroupMenu(name));
       } else {
@@ -373,6 +380,7 @@ final class TabSwitcher {
         h.thumb.setVisibility(View.VISIBLE);
         h.close.setVisibility(View.VISIBLE);
         h.group.setText("⊞");
+        h.group.setContentDescription("Add tab to group");
         FrameLayout preview = (FrameLayout) h.thumb.getParent();
         for (int i = preview.getChildCount() - 1; i >= 2; i--) preview.removeViewAt(i);
         h.bind(tab, host.tabs().indexOf(tab) == host.currentIndex());
