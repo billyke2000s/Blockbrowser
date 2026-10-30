@@ -77,7 +77,10 @@ public class HlsDownloadTest {
           int to = r[1].isEmpty() ? body.length - 1 : Integer.parseInt(r[1]);
           byte[] part = new byte[to - from + 1];
           System.arraycopy(body, from, part, 0, part.length);
-          respond(out, "206 Partial Content", "Content-Range: bytes " + from + "-" + to + "/" + body.length + "\r\n", part);
+          String header = path.equals("/bad-range.bin")
+              ? "Content-Range: bytes " + from + "-" + (to + 1) + "/" + body.length + "\r\n"
+              : "Content-Range: bytes " + from + "-" + to + "/" + body.length + "\r\n";
+          respond(out, "206 Partial Content", header, part);
         } else {
           respond(out, "200 OK", "", body);
         }
@@ -158,6 +161,19 @@ public class HlsDownloadTest {
       // The playlist is reached through a redirect, so its pieces must resolve against /sub/.
       HlsDownload.Result r = HlsDownload.download(http(s), s.base + "/moved.m3u8", null, tempDir(), null);
       assertEquals("abcdefg", new String(Files.readAllBytes(r.video.toPath()), StandardCharsets.UTF_8));
+    }
+  }
+
+  @Test public void rejectsIncorrectPartialContentRange() throws Exception {
+    try (Server s = new Server()) {
+      s.put("/bad-range.bin", "0123456789");
+      HlsDownload.Http http = http(s);
+      try {
+        http.get(s.base + "/bad-range.bin", 2, 3, 100);
+        fail("incorrect Content-Range was accepted");
+      } catch (IOException expected) {
+        assertTrue(expected.getMessage().contains("byte range"));
+      }
     }
   }
 
