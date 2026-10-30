@@ -148,9 +148,15 @@ public class StreamDownloadService extends Service {
         if (convert.getMessage() != null && (convert.getMessage().contains("timestamps are invalid")
             || convert.getMessage().contains("too few readable frames"))) throw convert;
         if (r.audio != null) throw new IOException("couldn't combine the video and audio (" + convert.getMessage() + ")");
-        // Joined fragmented-MP4 pieces already are an MP4; joined MPEG-TS pieces play in most video apps.
+        // A concatenation of fMP4 fragments is not necessarily a valid standalone
+        // MP4. Never publish it as a completed video when remuxing failed.
+        if (r.videoFragmentedMp4)
+          throw new IOException("couldn't finalize fragmented MP4 video (" + convert.getMessage() + ")", convert);
+        // Raw MPEG-TS can be saved with its real format, rather than pretending
+        // the unconverted stream is an MP4.
         toSave = r.video;
-        if (!r.videoFragmentedMp4) { job.mime = "video/mp2t"; job.title = job.title.replaceAll("\\.mp4$", ".ts"); }
+        job.mime = "video/mp2t";
+        job.title = job.title.replaceAll("(?i)\\.mp4$", ".ts");
       }
       // Do not publish a completed download after the user cancelled during conversion.
       if (stopAll || cancelId == job.id) throw new HlsDownload.Cancelled();
