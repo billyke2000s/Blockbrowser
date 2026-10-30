@@ -1908,7 +1908,9 @@ public class MainActivity extends Activity {
       customView = view;
       customViewCallback = cb;
       fullscreenBeforeVideo = fullscreen;
-      view.setBackgroundColor(Color.BLACK);
+      // Do not paint over WebView's fullscreen video surface: some players
+      // supply a SurfaceView/TextureView whose composition is affected by
+      // setting the entire custom-view background to opaque black.
       outer.addView(view, new FrameLayout.LayoutParams(-1, -1));
       setFullscreen(true);
       showWebsiteAspectControl(tab.web);
