@@ -1172,23 +1172,30 @@ public class MainActivity extends Activity {
       return;
     }
     groupBar.setVisibility(View.VISIBLE);
-    TextView label = button(active.groupId + " ▾", () -> chooseGroupForTab(active));
-    label.setTextSize(13);
-    groupBar.addView(label);
+    int count = 0;
+    for (Tab tab : tabs) if (active.groupId.equals(tab.groupId)) count++;
     for (Tab tab : tabs) {
       if (!active.groupId.equals(tab.groupId)) continue;
-      TextView chip = button(tab == active ? "● " + tab.displayTitle() : tab.displayTitle(), () -> selectTab(tabs.indexOf(tab)));
-      chip.setTextSize(12);
+      TextView chip = button(tab.favicon == null ? "●" : "◉", () -> selectTab(tabs.indexOf(tab)));
+      chip.setTextSize(19);
       chip.setSingleLine(true);
-      chip.setMaxWidth(dp(110));
+      chip.setGravity(Gravity.CENTER);
+      chip.setContentDescription(tab.displayTitle());
+      chip.setAlpha(tab == active ? 1f : 0.65f);
       groupBar.addView(chip, new LinearLayout.LayoutParams(0, dp(42), 1));
     }
     TextView plus = button("+", () -> {
       Tab created = newTab(homeUrl());
-      created.groupId = active.groupId;
-      groupChanged();
+      if (created != null) {
+        created.groupId = active.groupId;
+        groupChanged();
+      }
     });
+    plus.setContentDescription("New tab in group");
     groupBar.addView(plus);
+    TextView expand = button("⌃", () -> showTabSwitcher());
+    expand.setContentDescription("Show tabs in group");
+    groupBar.addView(expand);
   }
 
   void tabMenu(View anchor) {
