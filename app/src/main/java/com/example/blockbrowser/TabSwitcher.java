@@ -35,6 +35,8 @@ final class TabSwitcher {
     void groupTab(int index);
     void showMenu(View anchor);
     boolean isPrivate();
+    void renameGroup(String oldName);
+    void ungroup(String groupName);
   }
 
   private final MainActivity activity;
@@ -43,6 +45,7 @@ final class TabSwitcher {
   private final RecyclerView grid;
   private final TextView title;
   private final Adapter adapter = new Adapter();
+  private String selectedGroup = null;
   private Tab dragSource, dragTarget;
 
   TabSwitcher(MainActivity activity, Host host) {
@@ -65,6 +68,16 @@ final class TabSwitcher {
     title.setPadding(activity.dp(8), 0, 0, 0);
     header.addView(title, new LinearLayout.LayoutParams(0, -2, 1));
     TextView add = headerButton("+", "New tab", () -> { dialog.dismiss(); host.newTab(); });
+    title.setOnClickListener(v -> {
+      if (selectedGroup == null) return;
+      new android.app.AlertDialog.Builder(activity).setTitle(selectedGroup)
+          .setItems(new String[]{"Rename group", "Ungroup tabs", "Show all tabs"}, (d, which) -> {
+            if (which == 0) host.renameGroup(selectedGroup);
+            else if (which == 1) { host.ungroup(selectedGroup); selectedGroup = null; }
+            else selectedGroup = null;
+            refresh();
+          }).show();
+    });
     TextView more = headerButton("⋮", "Tab options", null);
     more.setOnClickListener(host::showMenu);
     TextView done = headerButton("Done", "Done", dialog::dismiss);
@@ -84,6 +97,7 @@ final class TabSwitcher {
         ItemTouchHelper.LEFT | ItemTouchHelper.RIGHT) {
       @Override public boolean onMove(@NonNull RecyclerView rv, @NonNull RecyclerView.ViewHolder from, @NonNull RecyclerView.ViewHolder to) {
         int a = from.getBindingAdapterPosition(), b = to.getBindingAdapterPosition();
+        if (selectedGroup != null) return false;
         if (a < 0 || b < 0) return false;
         if (dragSource == null) dragSource = host.tabs().get(a);
         dragTarget = host.tabs().get(b);
@@ -93,7 +107,7 @@ final class TabSwitcher {
       }
       @Override public void onSwiped(@NonNull RecyclerView.ViewHolder vh, int direction) {
         int i = vh.getBindingAdapterPosition();
-        if (i >= 0) closeAt(i);
+        if (i >= 0 && i < adapter.visibleTabs().size()) closeAt(host.tabs().indexOf(adapter.visibleTabs().get(i)));
       }
       @Override public void clearView(@NonNull RecyclerView rv, @NonNull RecyclerView.ViewHolder vh) {
         super.clearView(rv, vh);
@@ -187,15 +201,22 @@ final class TabSwitcher {
 
   void refresh() {
     int n = host.tabs().size();
-    title.setText(n == 1 ? "1 tab" : n + " tabs");
+    title.setText(selectedGroup == null ? (n == 1 ? "1 tab" : n + " tabs") : selectedGroup + " ▾");
     adapter.notifyDataSetChanged();
   }
 
   void show() {
+    selectedGroup = null;
     refresh();
     dialog.show();
     int current = host.currentIndex();
     if (current >= 0) grid.scrollToPosition(current);
+  }
+
+  void showGroup(String group) {
+    selectedGroup = group;
+    refresh();
+    dialog.show();
   }
 
   boolean isShowing() { return dialog.isShowing(); }
@@ -275,7 +296,14 @@ final class TabSwitcher {
   }
 
   private final class Adapter extends RecyclerView.Adapter<Holder> {
-    @Override public int getItemCount() { return host.tabs().size(); }
+    @Override public int getItemCount() { return visibleTabs().size(); }
+
+    private List<Tab> visibleTabs() {
+      if (selectedGroup == null) return host.tabs();
+      java.util.ArrayList<Tab> result = new java.util.ArrayList<>();
+      for (Tab tab : host.tabs()) if (selectedGroup.equals(tab.groupId)) result.add(tab);
+      return result;
+    }
 
     @NonNull @Override public Holder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
       LinearLayout card = new LinearLayout(activity);
@@ -286,16 +314,16 @@ final class TabSwitcher {
     }
 
     @Override public void onBindViewHolder(@NonNull Holder h, int position) {
-      Tab tab = host.tabs().get(position);
-      h.bind(tab, position == host.currentIndex());
+      Tab tab = visibleTabs().get(position);
+      h.bind(tab, host.tabs().indexOf(tab) == host.currentIndex());
       h.card.setOnClickListener(v -> {
-        int i = h.getBindingAdapterPosition();
+        int i = host.tabs().indexOf(tab);
         if (i < 0) return;
         dialog.dismiss();
         host.select(i);
       });
-      h.close.setOnClickListener(v -> { int i = h.getBindingAdapterPosition(); if (i >= 0) closeAt(i); });
-      h.group.setOnClickListener(v -> { int i = h.getBindingAdapterPosition(); if (i >= 0) host.groupTab(i); });
+      h.close.setOnClickListener(v -> { int i = host.tabs().indexOf(tab); if (i >= 0) closeAt(i); });
+      h.group.setOnClickListener(v -> { int i = host.tabs().indexOf(tab); if (i >= 0) host.groupTab(i); });
     }
   }
 }
