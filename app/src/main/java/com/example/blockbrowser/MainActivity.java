@@ -2332,8 +2332,11 @@ public class MainActivity extends Activity {
       return;
     }
     String js = "(function(){var a=Array.from(document.querySelectorAll('video'));"
-        + "var v=a.find(x=>!x.paused&&!x.ended)||a.find(x=>x.webkitDisplayingFullscreen)||a[0];"
-        + "return v?(v.currentSrc||v.src||(v.querySelector('source')||{}).src||''):'';})()";
+        + "var active=a.filter(x=>!x.paused&&!x.ended&&x.readyState>0);"
+        + "var full=a.filter(x=>x.webkitDisplayingFullscreen||document.fullscreenElement===x);"
+        + "var chosen=full.length===1?full:active;"
+        + "if(chosen.length!==1)return '';"
+        + "var v=chosen[0];return v.currentSrc||v.src||(v.querySelector('source')||{}).src||'';})()";
     web.evaluateJavascript(js, result -> {
       // Ignore callbacks delivered after the fullscreen player or tab changed.
       if (websiteVideoWebView != web || currentTab() != tab || customView == null) return;
