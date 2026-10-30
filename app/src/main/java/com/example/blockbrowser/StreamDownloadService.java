@@ -139,10 +139,12 @@ public class StreamDownloadService extends Service {
       File mp4 = new File(work, "out.mp4");
       File toSave;
       try {
-        StreamRemuxer.toMp4(r.video, r.audio, mp4);
+        StreamRemuxer.toMp4(r.video, r.audio, mp4, r.duration);
         toSave = mp4;
       } catch (IOException convert) {
         Log.w(TAG, "MP4 conversion failed; saving the stream as downloaded", convert);
+        if (convert.getMessage() != null && (convert.getMessage().contains("timestamps are invalid")
+            || convert.getMessage().contains("too few readable frames"))) throw convert;
         if (r.audio != null) throw new IOException("couldn't combine the video and audio (" + convert.getMessage() + ")");
         // Joined fragmented-MP4 pieces already are an MP4; joined MPEG-TS pieces play in most video apps.
         toSave = r.video;
