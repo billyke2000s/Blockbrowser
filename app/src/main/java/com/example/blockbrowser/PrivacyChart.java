@@ -57,8 +57,25 @@ final class PrivacyChart {
     tabs.sort(Comparator.comparingInt((Tab t) -> t.blocked.get()).reversed());
     int visible = 0;
     for (Tab t : tabs) if (t.blocked.get() > 0) visible++;
+    // Closed tabs and navigations reset per-page counters. Fall back to saved
+    // blocked-domain counts so the chart remains useful across sessions.
+    if (visible == 0 && a.blockingStats != null) {
+      Map<String, Long> saved = a.blockingStats.topDomains();
+      List<Map.Entry<String, Long>> rankedChart = new ArrayList<>(saved.entrySet());
+      rankedChart.sort((x, y) -> Long.compare(y.getValue(), x.getValue()));
+      int n = Math.min(6, rankedChart.size());
+      if (n > 0) {
+        long[] values = new long[n];
+        String[] labels = new String[n];
+        for (int i = 0; i < n; i++) {
+          values[i] = rankedChart.get(i).getValue();
+          labels[i] = rankedChart.get(i).getKey();
+        }
+        addDoughnut(a, root, values, labels, "Blocked requests by domain (saved totals)");
+      }
+    }
     if (visible == 0) {
-      root.addView(text(a, "No blocked requests on currently open pages yet. Browse with blocking enabled to see the chart.", 15, ListPanel.MUTED));
+      if (a.blockingStats == null || a.blockingStats.topDomains().isEmpty()) root.addView(text(a, "No blocked requests recorded yet.", 15, ListPanel.MUTED));
     } else {
       int[] values = new int[visible];
       int k = 0;
@@ -148,6 +165,39 @@ final class PrivacyChart {
     dialog.show();
     if(dialog.getWindow()!=null) dialog.getWindow().setLayout(-1,-1);
   }
+  private static void addDoughnut(MainActivity a, LinearLayout root, long[] values, String[] labels, String heading) {
+    final int[] colors = {0xff83b9ff,0xff60d6bb,0xffffbc76,0xffbc9bff,0xffff829e,0xff8facc9};
+    View chart = new View(a) {
+      final Paint paint = new Paint(3);
+      @Override protected void onDraw(Canvas canvas) {
+        super.onDraw(canvas);
+        float side = Math.min(getWidth(), getHeight()) - a.dp(26);
+        float inset = a.dp(25);
+        RectF arc = new RectF((getWidth()-side)/2+inset,(getHeight()-side)/2+inset,
+            (getWidth()+side)/2-inset,(getHeight()+side)/2-inset);
+        long sum=0; for(long v:values) sum+=v;
+        if(sum<=0)return;
+        float start=-90;
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setStrokeWidth(a.dp(29));
+        for(int i=0;i<values.length;i++) {
+          float sweep=360f*values[i]/sum;
+          paint.setColor(colors[i%colors.length]);
+          canvas.drawArc(arc,start,sweep,false,paint);
+          start+=sweep;
+        }
+        paint.setStyle(Paint.Style.FILL);
+      }
+    };
+    root.addView(chart,new LinearLayout.LayoutParams(-1,a.dp(230)));
+    root.addView(text(a,heading,17,ListPanel.TEXT));
+    for(int i=0;i<labels.length;i++) {
+      TextView line=text(a,"●  "+labels[i]+"  ·  "+values[i],14,colors[i%colors.length]);
+      line.setPadding(0,a.dp(9),0,a.dp(4));
+      root.addView(line);
+    }
+  }
+
   private static TextView button(MainActivity a,String s){
     TextView b=text(a,s,15,ListPanel.ACCENT);
     b.setGravity(Gravity.CENTER);
