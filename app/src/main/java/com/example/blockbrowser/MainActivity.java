@@ -2335,13 +2335,17 @@ public class MainActivity extends Activity {
         + "var active=a.filter(x=>!x.paused&&!x.ended&&x.readyState>0);"
         + "var full=a.filter(x=>x.webkitDisplayingFullscreen||document.fullscreenElement===x);"
         + "var chosen=full.length===1?full:active;"
-        + "if(chosen.length!==1)return '';"
+        + "if(chosen.length>1)return 'bb:ambiguous-player';if(chosen.length===0)return '';"
         + "var v=chosen[0];return v.currentSrc||v.src||(v.querySelector('source')||{}).src||'';})()";
     web.evaluateJavascript(js, result -> {
       // Ignore callbacks delivered after the fullscreen player or tab changed.
       if (websiteVideoWebView != web || currentTab() != tab || customView == null) return;
       String url = "";
       try { url = new JSONArray("[" + result + "]").optString(0, ""); } catch (Exception ignored) {}
+      if ("bb:ambiguous-player".equals(url)) {
+        toastLong("More than one video is playing. Pause the other videos before downloading.");
+        return;
+      }
       String agent = web.getSettings().getUserAgentString();
       String page = tab.currentUrl();
       if (UrlTools.isWebUrl(url)) {
