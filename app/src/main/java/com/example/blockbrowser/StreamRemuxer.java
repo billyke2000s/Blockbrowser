@@ -26,10 +26,15 @@ final class StreamRemuxer {
   private static final class Track {
     int source, muxIndex;
     long offsetUs, lastUs = Long.MIN_VALUE, frameUs = 40_000;
+    long firstUs = Long.MIN_VALUE, samples;
   }
 
   /** Writes video (with its own audio, if any) and, when given, a separate audio file into one MP4. */
   static void toMp4(File video, File audio, File out) throws IOException {
+    toMp4(video, audio, out, -1);
+  }
+
+  static void toMp4(File video, File audio, File out, double expectedSeconds) throws IOException {
     List<MediaExtractor> extractors = new ArrayList<>();
     MediaMuxer muxer = null;
     boolean started = false;
@@ -111,11 +116,25 @@ final class StreamRemuxer {
             time += shift;
           }
           if (time < 0) time = 0;
-          t.lastUs = Math.max(t.lastUs, time);
+          if (t.lastUs != Long.MIN_VALUE && time <= t.lastUs) {
+            time = t.lastUs + Math.max(1, t.frameUs);
+            t.offsetUs = time - ex.getSampleTime();
+          }
+          if (t.firstUs == Long.MIN_VALUE) t.firstUs = time;
+          t.lastUs = time;
+          t.samples++;
           info.set(0, size, time, (ex.getSampleFlags() & MediaExtractor.SAMPLE_FLAG_SYNC) != 0 ? MediaCodec.BUFFER_FLAG_KEY_FRAME : 0);
           muxer.writeSampleData(t.muxIndex, buf, info);
           ex.advance();
         }
+      }
+      Track videoOutput = tracks[0][videoTrack];
+      if (videoOutput == null || videoOutput.samples < 2) throw new IOException("video has too few readable frames");
+      if (expectedSeconds > 10) {
+        double actual = (videoOutput.lastUs - videoOutput.firstUs) / 1_000_000.0;
+        if (actual < expectedSeconds * 0.75 || actual > expectedSeconds * 1.25)
+          throw new IOException("video timestamps are invalid (expected about "
+              + Math.round(expectedSeconds) + " s, found " + Math.round(actual) + " s)");
       }
       muxer.stop();
       started = false;
