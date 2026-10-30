@@ -129,6 +129,12 @@ final class TabSwitcher {
         adapter.notifyItemMoved(a, b);
         return true;
       }
+      @Override public int getDragDirs(@NonNull RecyclerView rv, @NonNull RecyclerView.ViewHolder vh) {
+        int i = vh.getBindingAdapterPosition();
+        // Group cards are containers. Only individual tabs can be dragged.
+        if (i < 0 || i >= entries.size() || !(entries.get(i) instanceof Tab)) return 0;
+        return super.getDragDirs(rv, vh);
+      }
       @Override public int getSwipeDirs(@NonNull RecyclerView rv, @NonNull RecyclerView.ViewHolder vh) {
         int i = vh.getBindingAdapterPosition();
         // A group is a container, not a single tab. Never allow it to be
