@@ -2448,7 +2448,7 @@ public class MainActivity extends Activity {
   }
 
   void downloadVideo(Tab t, String url, MediaSniffer.Kind kind, String agent, String page) {
-    if (kind == MediaSniffer.Kind.FILE) { Downloads.start(this, url, agent, null, "video/mp4", page); return; }
+    if (kind == MediaSniffer.Kind.FILE) { Downloads.start(this, url, agent, null, MediaSniffer.fileMime(url), page); return; }
     if (kind == MediaSniffer.Kind.DASH) {
       toastLong("This site streams in DASH format, which Block Browser can't download yet");
       return;
