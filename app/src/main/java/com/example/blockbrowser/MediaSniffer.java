@@ -34,6 +34,17 @@ final class MediaSniffer {
     return null;
   }
 
+  /** MIME type for a directly downloadable video file, preserving its real container. */
+  static String fileMime(String url) {
+    if (classify(url) != Kind.FILE) return null;
+    String path = url.toLowerCase(Locale.ROOT).split("[?#]", 2)[0];
+    if (path.endsWith(".webm")) return "video/webm";
+    if (path.endsWith(".mkv")) return "video/x-matroska";
+    if (path.endsWith(".mov")) return "video/quicktime";
+    if (path.endsWith(".ogv")) return "video/ogg";
+    return "video/mp4";
+  }
+
   static final class Found {
     final String url; final Kind kind;
     Found(String url, Kind kind) { this.url = url; this.kind = kind; }
