@@ -18,6 +18,15 @@ public class MediaSnifferTest {
     assertEquals(MediaSniffer.Kind.FILE, MediaSniffer.classify("http://localhost:8765/a.webm"));
   }
 
+  @Test public void preservesFileContainerMime() {
+    assertEquals("video/mp4", MediaSniffer.fileMime("https://v.example/clip.M4V?key=1"));
+    assertEquals("video/webm", MediaSniffer.fileMime("https://v.example/clip.webm"));
+    assertEquals("video/x-matroska", MediaSniffer.fileMime("https://v.example/clip.mkv"));
+    assertEquals("video/quicktime", MediaSniffer.fileMime("https://v.example/clip.mov"));
+    assertEquals("video/ogg", MediaSniffer.fileMime("https://v.example/clip.ogv"));
+    assertNull(MediaSniffer.fileMime("https://v.example/playlist.m3u8"));
+  }
+
   @Test public void ignoresPiecesAndEverythingElse() {
     assertNull(MediaSniffer.classify("https://v.example.com/seg-001.ts"));
     assertNull(MediaSniffer.classify("https://v.example.com/chunk.m4s"));
