@@ -2335,6 +2335,8 @@ public class MainActivity extends Activity {
         + "var v=a.find(x=>!x.paused&&!x.ended)||a.find(x=>x.webkitDisplayingFullscreen)||a[0];"
         + "return v?(v.currentSrc||v.src||(v.querySelector('source')||{}).src||''):'';})()";
     web.evaluateJavascript(js, result -> {
+      // Ignore callbacks delivered after the fullscreen player or tab changed.
+      if (websiteVideoWebView != web || currentTab() != tab || customView == null) return;
       String url = "";
       try { url = new JSONArray("[" + result + "]").optString(0, ""); } catch (Exception ignored) {}
       String agent = web.getSettings().getUserAgentString();
