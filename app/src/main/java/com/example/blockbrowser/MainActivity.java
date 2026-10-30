@@ -1093,6 +1093,10 @@ public class MainActivity extends Activity {
       @Override public void showMenu(View anchor) { tabMenu(anchor); }
       @Override public boolean isPrivate() { return MainActivity.this.isPrivate(); }
       @Override public void renameGroup(String name) { renameTabGroup(name); }
+      @Override public void closeGroup(String name) {
+        for (int i = tabs.size() - 1; i >= 0; i--) if (name.equals(tabs.get(i).groupId)) closeTab(i, true);
+        groupChanged();
+      }
       @Override public void ungroup(String name) { for (Tab t : tabs) if (name.equals(t.groupId)) t.groupId = null; groupChanged(); }
     });
     switcher.show();
