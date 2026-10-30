@@ -125,8 +125,10 @@ final class TabSwitcher {
         int fromIndex = host.tabs().indexOf(fromTab), toIndex = host.tabs().indexOf(toTab);
         if (fromIndex < 0 || toIndex < 0 || fromIndex == toIndex) return false;
         host.move(fromIndex, toIndex);
-        java.util.Collections.swap(entries, a, b);
-        adapter.notifyItemMoved(a, b);
+        // Host.move removes and inserts, rather than swapping. Rebuild the
+        // visible group view from the actual tab order so cards and positions
+        // cannot diverge (especially while reordering inside a group).
+        refresh();
         return true;
       }
       @Override public int getDragDirs(@NonNull RecyclerView rv, @NonNull RecyclerView.ViewHolder vh) {
