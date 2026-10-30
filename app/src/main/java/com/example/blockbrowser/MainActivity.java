@@ -2352,6 +2352,36 @@ public class MainActivity extends Activity {
           found.put(u, k == null ? MediaSniffer.Kind.FILE : k);
         }
       } catch (Exception ignored) {}
+      // Network sniffing includes HLS audio renditions, initialization segments and page endpoints.
+      // These are not independent videos. Prefer the master playlist when it was requested.
+      java.util.ArrayList<String> discard = new java.util.ArrayList<>();
+      boolean hasMaster = false;
+      for (String u : found.keySet()) {
+        String clean = Uri.parse(u).getPath();
+        clean = clean == null ? "" : clean.toLowerCase(java.util.Locale.ROOT);
+        if (clean.endsWith("/master.m3u8") || clean.endsWith("/master_playlist.m3u8")) hasMaster = true;
+      }
+      for (java.util.Map.Entry<String, MediaSniffer.Kind> entry : found.entrySet()) {
+        String u = entry.getKey();
+        String clean = Uri.parse(u).getPath();
+        clean = clean == null ? "" : clean.toLowerCase(java.util.Locale.ROOT);
+        if (clean.endsWith(".php") || clean.endsWith("/init.mp4")
+            || clean.matches(".*[/]init-[^/]*[.]mp4$")
+            || clean.matches(".*[/]index-v[^/]*-a[^/]*[.]m3u8$")
+            || (hasMaster && entry.getValue() == MediaSniffer.Kind.HLS
+                && !clean.endsWith("/master.m3u8") && !clean.endsWith("/master_playlist.m3u8"))) {
+          discard.add(u);
+        }
+      }
+      for (String u : discard) found.remove(u);
+      // Deduplicate the same file served with distinct tracking or temporary query tokens.
+      java.util.HashSet<String> seenFiles = new java.util.HashSet<>();
+      for (String u : new java.util.ArrayList<>(found.keySet())) {
+        if (found.get(u) != MediaSniffer.Kind.FILE) continue;
+        String path = Uri.parse(u).getPath();
+        String key = UrlTools.host(u) + (path == null ? "" : path);
+        if (!seenFiles.add(key)) found.remove(u);
+      }
       if (BuildConfig.TEST_LOGS) Log.i("BlockBrowserTest", "video candidates: " + found);
       if (found.isEmpty()) {
         toastLong("No video found on this page. Start the video playing, then try again. Copy-protected videos (Netflix and similar) can't be saved.");
