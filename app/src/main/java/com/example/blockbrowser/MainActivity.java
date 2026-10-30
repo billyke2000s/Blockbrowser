@@ -2359,8 +2359,15 @@ public class MainActivity extends Activity {
           return;
         }
       }
-      // MSE/blob players have no directly downloadable currentSrc. Use their captured
-      // HLS master manifest if one is unambiguous; do not present unrelated page URLs.
+      // A blob/MSE source is not an HTTP URL. The tab-wide request log cannot
+      // establish which manifest belongs to this fullscreen player (especially
+      // when ads and cross-origin iframes also request HLS). Never guess here.
+      if (url.isEmpty() || url.startsWith("blob:") || url.startsWith("mediasource:")) {
+        toastLong("This player uses an embedded stream. Its exact video URL could not be verified; no download started.");
+        return;
+      }
+      // Only consider captured HLS manifests for an otherwise unclassified
+      // web URL, and only if there is a single unambiguous candidate.
       java.util.LinkedHashMap<String, MediaSniffer.Kind> masters = new java.util.LinkedHashMap<>();
       java.util.LinkedHashMap<String, MediaSniffer.Kind> streams = new java.util.LinkedHashMap<>();
       for (MediaSniffer.Found f : tab.media.snapshot()) {
