@@ -172,7 +172,7 @@ Block Browser catches a video stream as the page plays it, downloads every piece
 | Plain video files (`<video>` sources) | **Copy-protected video** — Netflix, Disney+, Prime Video and other DRM, or encrypted HLS |
 | **HLS streams** (`.m3u8`), used by most news, sports and social sites | **Live streams** |
 | Several qualities — you pick | **DASH streams** (`.mpd`) |
-| Downloads from signed-in sites (the site's cookies are sent) | **Unsupported streaming formats** may not download |
+| Downloads from signed-in sites (the site's cookies are sent) | **YouTube** (deliberately not supported) |
 
 Downloading may be against a site's terms; only save videos you have the right to.
 
