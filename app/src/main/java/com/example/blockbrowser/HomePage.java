@@ -32,6 +32,7 @@ final class HomePage {
   static final String URL = ORIGIN + "/home";
   static final String STATS_URL = ORIGIN + "/home/statistics";
   static final String HIDE_URL = ORIGIN + "/home/hide-site?host=";
+  static final String RESTORE_URL = ORIGIN + "/home/restore-sites";
 
   private HomePage() {}
 
@@ -46,6 +47,7 @@ final class HomePage {
 
   static boolean isStatsLink(String url) { return url != null && url.startsWith(STATS_URL); }
   static boolean isHideLink(String url) { return url != null && url.startsWith(HIDE_URL); }
+  static boolean isRestoreLink(String url) { return RESTORE_URL.equals(url); }
 
   /** What the page needs, gathered on a background thread (WebView's request thread). */
   static final class Data {
@@ -57,6 +59,7 @@ final class HomePage {
     final List<Map.Entry<String, Long>> topBlocked = new ArrayList<>();
     final List<String[]> shortcuts = new ArrayList<>(); // {url, title, iconDataUri or null}
     int blocklistSize;
+    boolean hasHiddenSites;
   }
 
   static Data collect(MainActivity a) {
@@ -97,6 +100,7 @@ final class HomePage {
     }
 
     if (!d.isPrivate) {
+      d.hasHiddenSites = !a.getSharedPreferences("hidden_home_sites", android.content.Context.MODE_PRIVATE).getAll().isEmpty();
       Set<String> hosts = new LinkedHashSet<>();
       for (HistoryStore.Entry e : a.history().topSites(60)) {
         if (isHome(e.url) || e.host.isEmpty()) continue;
@@ -246,6 +250,7 @@ final class HomePage {
       }
       h.append("</nav>");
     }
+    if (!d.isPrivate && d.hasHiddenSites) h.append("<a class=more href='").append(RESTORE_URL).append("'>Restore hidden suggested sites</a>");
 
     // Blocking statistics
     h.append("<h2>Ads and trackers blocked</h2><div class=stats>")
